@@ -139,15 +139,18 @@ class ExLlamaV2:
         # Build model
 
         self.modules.append(ExLlamaV2Embedding(self, "model.embed_tokens"))
+        # self.module.keys[-1]: str = "model.embed_tokens"
+        #! a map from module name to module
         self.modules_dict[self.modules[-1].key] = self.modules[-1]
-
+        #! construct multiple decoder layers that consist of attention and mlp
         for layer_idx in range(self.config.num_hidden_layers):
-
+            #! submodules: input layernorm; q,k,v,o proj
             self.modules.append(ExLlamaV2Attention(self, f"model.layers.{layer_idx}", layer_idx))
             for m in self.modules[-1].submodules: self.modules_dict[m.key] = m
             if self.config.architecture == "Mixtral":
                 self.modules.append(ExLlamaV2MoEMLP(self, f"model.layers.{layer_idx}", layer_idx))
             else:
+                #! submodules: gate_proj; up_proj; down_proj; post_attention_layernorm; 
                 self.modules.append(ExLlamaV2MLP(self, f"model.layers.{layer_idx}", layer_idx))
             for m in self.modules[-1].submodules: self.modules_dict[m.key] = m
 

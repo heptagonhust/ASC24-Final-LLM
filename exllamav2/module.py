@@ -23,7 +23,7 @@ def _tsize(st, key):
     elif dtype == "F32": return numel * 4
     else: raise ValueError(f"Unexpected datatype {dtype}: {key}")
 
-
+#! base class of all the modules in the model
 class ExLlamaV2Module:
 
     model = None

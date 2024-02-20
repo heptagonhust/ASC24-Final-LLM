@@ -1,5 +1,6 @@
 
 import sys, os, gc
+import argparse
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from exllamav2 import(
@@ -12,14 +13,17 @@ from exllamav2 import(
 from datasets import load_dataset
 import torch
 
+parser = argparse.ArgumentParser(description = "Test mmlu datasets on ExLlamaV2 model")
+parser.add_argument("-m", type=str, help="Path to model directory")
+args = parser.parse_args()
 # Models to test
 
 # model_base = "/mnt/str/models/_exl2"
 # model_base = "/mnt/str/models/mixtral-8x7b-instruct-exl2/"
-model_base = "/mnt/str/models/tiefighter-13b-exl4/"
+model_base = args.m
 
 variants = [v for v in os.listdir(model_base) if os.path.isdir(os.path.join(model_base, v))]
-
+print(variants)
 # variants = \
 # [
 #     "2.4bpw",
@@ -53,6 +57,8 @@ def get_model(base, variant_, gpu_split_, batch_size_):
 
     model_dir = os.path.join(base, variant_)
 
+    #! get model layers key from config.json
+    #!      and get corresponding weight file name
     config = ExLlamaV2Config()
     config.model_dir = model_dir
     config.prepare()

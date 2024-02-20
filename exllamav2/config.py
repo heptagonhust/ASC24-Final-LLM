@@ -114,6 +114,15 @@ class ExLlamaV2Config:
                 expect_keys += \
                     expect_keys_llama
 
+            elif "AquilaForCausalLM" in read_config["architectures"]:
+                self.architecture = "Llama"
+                layer_keys += \
+                    layer_keys_llama_norms + \
+                    layer_keys_llama_attn + \
+                    layer_keys_llama_mlp
+                expect_keys += \
+                    expect_keys_llama
+
             elif "YiForCausalLM" in read_config["architectures"]:
                 self.architecture = "Yi"
                 layer_keys += \
