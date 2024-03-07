@@ -4,10 +4,23 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 project(trtllm-single-instance LANGUAGES CXX CUDA)
 
 find_package(CUDAToolkit REQUIRED)
-include_directories(${CUDAToolkit_INCLUDE_DIRS})
+find_package(MPI REQUIRED)
+message(STATUS "Using MPI_CXX_INCLUDE_DIRS: ${MPI_CXX_INCLUDE_DIRS}")
+message(STATUS "Using MPI_CXX_LIBRARIES: ${MPI_CXX_LIBRARIES}")
+include_directories(
+    ${CUDAToolkit_INCLUDE_DIRS} 
+    ${MPI_CXX_INCLUDE_DIRS}
+)
 
-set(CXXOPTS_SRC_DIR "${PROJECT_SOURCE_DIR}/3rdparty/cxxopts/")
-add_subdirectory(${CXXOPTS_SRC_DIR})
+set(3RDPARTY_DIR "${PROJECT_SOURCE_DIR}/3rdparty")
+add_subdirectory(
+    "${3RDPARTY_DIR}/cxxopts/"
+    "${3RDPARTY_DIR}/json"
+)
+
+include_directories(
+    ${3RDPARTY_DIR}/json/include
+)
 
 set(TRT_INCLUDE_DIR "/usr/local/tensorrt/include")
 set(TRT_LIB_DIR "/usr/local/tensorrt/lib")
@@ -38,12 +51,13 @@ set(SHARED_TARGETS
     tensorrt_llm 
     libnvinfer_plugin_tensorrt_llm
     libth_common
-    nvinfer
-    )
+    nvinfer)
 
 add_executable(${INSTANCE_NAME} src/main.cpp)
-# target_compile_options(${INSTANCE_NAME} PRIVATE -w)
+target_compile_options(${INSTANCE_NAME} PRIVATE -Wno-deprecated-declarations)
 target_link_libraries(${INSTANCE_NAME} PUBLIC 
                                         ${SHARED_TARGETS}
+                                        ${MPI_CXX_LIBRARIES}
                                         CUDA::cudart
-                                        cxxopts::cxxopts)
+                                        cxxopts::cxxopts
+                                        )
