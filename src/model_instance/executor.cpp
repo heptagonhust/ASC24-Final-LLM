@@ -1,5 +1,6 @@
 #include "model_instance/executor.h"
 #include <filesystem>
+#include <iostream>
 
 using namespace tensorrt_llm::runtime;
 
@@ -8,11 +9,11 @@ ExecutorServer::ExecutorServer(
     texec::ExecutorConfig const& executorConfig,
     std::shared_ptr<Recorder> recorder,
     std::chrono::milliseconds waitSleep)
-    : mRecorder(std::move(recorder))
-    , mWaitSleep(waitSleep)
-    , mActiveCount(0)
+    : recorder_(std::move(recorder))
+    , waitSleep_(waitSleep)
+    , activeCount_(0)
 {
-    mExecutor = std::make_shared<texec::Executor>(engineDir, texec::ModelType::kDECODER_ONLY, executorConfig);
+    executor_ = std::make_shared<texec::Executor>(engineDir, texec::ModelType::kDECODER_ONLY, executorConfig);
 }
 
 
@@ -27,14 +28,14 @@ void ExecutorServer::enqueue(std::vector<texec::Request> requests, bool warmup)
             maxNewTokens.push_back(request.getMaxNewTokens());
         }
         auto const start = std::chrono::steady_clock::now();
-        auto reqIds = mExecutor->enqueueRequests(std::move(requests));
+        auto reqIds = executor_->enqueueRequests(std::move(requests));
         for (int req = 0; req < reqIds.size(); ++req)
         {
             if (!warmup)
             {
-                mRecorder->recordStart(inputLengths.at(req), maxNewTokens.at(req), reqIds.at(req), start);
+                recorder_->recordStart(inputLengths.at(req), maxNewTokens.at(req), reqIds.at(req), start);
             }
-            mActiveCount++;
+            activeCount_++;
         }
     }
     catch (const std::exception& e)
@@ -47,28 +48,34 @@ void ExecutorServer::enqueue(std::vector<texec::Request> requests, bool warmup)
 void ExecutorServer::waitForResponses(std::optional<SizeType> numRequests, bool warmup)
 {
     SizeType numFinished = 0;
-    while (mActiveCount || (numRequests && numFinished < numRequests.value()))
+    while (activeCount_ || (numRequests && numFinished < numRequests.value()))
     {
-        auto responses = mExecutor->awaitResponses(std::nullopt, mWaitSleep);
+        auto responses = executor_->awaitResponses(std::nullopt, waitSleep_);
         for (auto const& response : responses)
         {
-            if (response.hasError())
+            if (!response.hasError())
+            {
+                texec::Result result = response.getResult();
+                if (result.isFinal)
+                {
+                    auto reqId = response.getRequestId();
+                    activeCount_--;
+                    numFinished++;
+                    if (!warmup)
+                    {
+                        recorder_->recordEnd(reqId);
+                        results_.emplace(reqId, std::move(result));
+                    }
+                }
+            }
+            else 
             {
                 // This request failed for some reason, get error msg
                 std::string errStr = "Request id " + std::to_string(response.getRequestId()) + " failed with err "
                     + response.getErrorMsg();
                 TLLM_THROW(errStr);
             }
-            else if (response.getResult().isFinal)
-            {
-                auto reqId = response.getRequestId();
-                mActiveCount--;
-                numFinished++;
-                if (!warmup)
-                {
-                    mRecorder->recordEnd(reqId);
-                }
-            }
+
         }
     }
 }

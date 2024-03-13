@@ -24,6 +24,7 @@ namespace
 void singleGPUinstance(InstanceParams instanceParams) {
     Instance instance(std::move(instanceParams));
     instance.run();
+    instance.writeResultsToJson("output.json");
 } 
 
 }

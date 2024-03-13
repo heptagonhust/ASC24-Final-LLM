@@ -1,6 +1,10 @@
 #include "model_instance/instance.h"
 #include "model_instance/config.h"
+
+#include <filesystem>
+#include <fstream>
 #include <memory>
+#include <nlohmann/json.hpp>
 
 Instance::Instance(InstanceParams instanceParams) 
     : instanceParams_(instanceParams) 
@@ -30,4 +34,16 @@ void Instance::run()
     recorder_->calculateMetrics();
     recorder_->report();
     recorder_->writeOpMetricsToCsv();
+}
+
+void Instance::writeResultsToJson(const fs::path& outputPath) const
+{
+    auto results = executorServer_->getResults();
+    nlohmann::json j;
+    for (auto& [reqId, result] : results)
+    {
+        j.push_back({result.outputTokenIds[0]});
+    }
+    std::ofstream outputFile(outputPath, std::ios::out);
+    outputFile << j << std::endl;
 }

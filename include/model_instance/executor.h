@@ -2,8 +2,10 @@
 #include <atomic>
 #include <cstdint>
 #include <filesystem>
+#include <map>
 
 #include "tensorrt_llm/executor/executor.h"
+#include "tensorrt_llm/executor/types.h"
 
 #include "model_instance/recorder.h"
 
@@ -27,13 +29,16 @@ public:
 
     void waitForResponses(std::optional<SizeType> numRequests,
                           bool warmup = false);
+        
+    std::map<texec::IdType, texec::Result> getResults() { return results_; }
 
-    void shutdown() { mExecutor->shutdown(); }
+    void shutdown() { executor_->shutdown(); }
 
 private:
-    std::shared_ptr<texec::Executor> mExecutor;
-    std::shared_ptr<Recorder> mRecorder;
-    std::chrono::milliseconds mWaitSleep;
-    std::atomic<uint64_t> mActiveCount;
+    std::shared_ptr<texec::Executor> executor_;
+    std::shared_ptr<Recorder> recorder_;
+    std::chrono::milliseconds waitSleep_;
+    std::atomic<uint64_t> activeCount_;
+    std::map<texec::IdType, texec::Result> results_;
 }; // class ExecutorServer
 
