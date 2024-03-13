@@ -2,23 +2,22 @@ cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(trtllm-single-instance LANGUAGES CXX CUDA)
+set(CMAKE_CXX_STANDARD 17)
 
 find_package(CUDAToolkit REQUIRED)
 find_package(MPI REQUIRED)
 message(STATUS "Using MPI_CXX_INCLUDE_DIRS: ${MPI_CXX_INCLUDE_DIRS}")
 message(STATUS "Using MPI_CXX_LIBRARIES: ${MPI_CXX_LIBRARIES}")
-include_directories(
-    ${CUDAToolkit_INCLUDE_DIRS} 
-    ${MPI_CXX_INCLUDE_DIRS}
-)
 
 set(3RDPARTY_DIR "${PROJECT_SOURCE_DIR}/3rdparty")
 add_subdirectory(
     "${3RDPARTY_DIR}/cxxopts/"
-    "${3RDPARTY_DIR}/json"
+    "${3RDPARTY_DIR}/json/"
 )
 
 include_directories(
+    ${CUDAToolkit_INCLUDE_DIRS} 
+    ${MPI_CXX_INCLUDE_DIRS}
     ${3RDPARTY_DIR}/json/include
 )
 
@@ -26,8 +25,8 @@ set(TRT_INCLUDE_DIR "/usr/local/tensorrt/include")
 set(TRT_LIB_DIR "/usr/local/tensorrt/lib")
 include_directories(${PROJECT_SOURCE_DIR}/include ${TRT_INCLUDE_DIR})
 
+
 set(INSTANCE_NAME batched_inference)
-set(CMAKE_CXX_STANDARD 17)
 
 add_library(tensorrt_llm SHARED IMPORTED)
 set(TRTLLM_LIB_LOCATION "${PROJECT_SOURCE_DIR}/libs/libtensorrt_llm.so")
@@ -53,7 +52,10 @@ set(SHARED_TARGETS
     libth_common
     nvinfer)
 
-add_executable(${INSTANCE_NAME} src/main.cpp)
+FILE(GLOB_RECURSE SOURCE CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/src/*.cpp")
+add_executable(${INSTANCE_NAME} ${SOURCE})
+add_definitions(-DENABLE_BF16)
+add_definitions(-DENABLE_FP8)
 target_compile_options(${INSTANCE_NAME} PRIVATE -Wno-deprecated-declarations)
 target_link_libraries(${INSTANCE_NAME} PUBLIC 
                                         ${SHARED_TARGETS}
