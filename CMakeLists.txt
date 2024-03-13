@@ -22,7 +22,7 @@ include_directories(
     ${3RDPARTY_DIR}/json/include
 )
 
-set(TRT_INCLUDE_DIR "/usr/local/tensorrt/include")
+set(TRT_INCLUDE_DIR "/usr/local/tensorrt/include" "${PROJECT_SOURCE_DIR}/include/tokenizers")
 set(TRT_LIB_DIR "/usr/local/tensorrt/lib")
 include_directories(${PROJECT_SOURCE_DIR}/include ${TRT_INCLUDE_DIR})
 
@@ -46,13 +46,23 @@ add_library(nvinfer SHARED IMPORTED)
 set(NVINFER_LOCATION "${TRT_LIB_DIR}/libnvinfer.so")
 set_property(TARGET nvinfer PROPERTY IMPORTED_LOCATION ${NVINFER_LOCATION})
 
+add_library(libtokenizers_cpp SHARED IMPORTED)
+set(LIBTOKENIZERS_CPP_LOCATION "${PROJECT_SOURCE_DIR}/libs/libtokenizers_cpp.a")
+set_property(TARGET libtokenizers_cpp PROPERTY IMPORTED_LOCATION ${LIBTOKENIZERS_CPP_LOCATION})
+
+add_library(libtokenizers_c SHARED IMPORTED)
+set(LIBTOKENIZERS_C_LOCATION "${PROJECT_SOURCE_DIR}/libs/libtokenizers_c.a")
+set_property(TARGET libtokenizers_c PROPERTY IMPORTED_LOCATION ${LIBTOKENIZERS_C_LOCATION})
+
 
 set(SHARED_TARGETS 
     tensorrt_llm 
     libnvinfer_plugin_tensorrt_llm
     libth_common
-    nvinfer)
-
+    nvinfer
+    libtokenizers_cpp
+    libtokenizers_c
+    )
 add_executable(${INSTANCE_NAME} src/main.cpp)
 target_compile_options(${INSTANCE_NAME} PRIVATE -Wno-deprecated-declarations)
 target_link_libraries(${INSTANCE_NAME} PUBLIC 

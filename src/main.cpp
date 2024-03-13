@@ -26,7 +26,10 @@
 #include "tensorrt_llm/plugins/api/tllmPlugin.h"
 #include "tensorrt_llm/runtime/tllmLogger.h"
 #include "tensorrt_llm/runtime/worldConfig.h"
+#include <tokenizers_cpp.h>
 
+
+#include <cassert>
 #include <chrono>
 #include <cstdint>
 #include <cxxopts.hpp>
@@ -645,21 +648,56 @@ struct Sample
 
 using Samples = std::vector<Sample>;
 
-Samples parseWorkloadJson(std::filesystem::path const& datasetPath, int maxNumSamples)
-{
+std::string LoadBytesFromFile(const std::string& path) {
+  std::ifstream fs(path, std::ios::in | std::ios::binary);
+  if (fs.fail()) {
+    std::cerr << "Cannot open " << path << std::endl;
+    exit(1);
+  }
+  std::string data;
+  fs.seekg(0, std::ios::end);
+  size_t size = static_cast<size_t>(fs.tellg());
+  fs.seekg(0, std::ios::beg);
+  data.resize(size);
+  fs.read(data.data(), size);
+  return data;
+}
+
+void PrintEncodeResult(const std::vector<int>& ids) {
+  std::cout << "tokens=[";
+  for (size_t i = 0; i < ids.size(); ++i) {
+    if (i != 0) std::cout << ", ";
+    std::cout << ids[i];
+  }
+  std::cout << "]" << std::endl;
+}
+Samples prepare_dataset_loadJson(std::filesystem::path const& datasetPath,int maxNumSamples) {
+
+    auto blob = LoadBytesFromFile("tokenizer.json");
+    auto tok = tokenizers::Tokenizer::FromBlobJSON(blob);
+    
+    //1.先读文件
     auto constexpr allowExceptions = true;
     auto constexpr ignoreComments = true;
     TLLM_CHECK_WITH_INFO(std::filesystem::exists(datasetPath), "File does not exist: %s", datasetPath.c_str());
     std::ifstream jsonStream(datasetPath);
     auto json = nlohmann::json::parse(jsonStream, nullptr, allowExceptions, ignoreComments);
-
-    Samples samples;
-
-    for (auto const& sample : json["samples"])
+    
+    Samples samples; 
+    //2.遍历文件把prompt读出来然后tokenizer
+    for (auto const& Prompt : json["Prompts"])
     {
         if (samples.size() >= maxNumSamples)
             break;
-        samples.emplace_back(Sample{sample["input_ids"], sample["output_len"], sample["delay"]});
+        // std::cout<<"Prompt:"<<Prompt["input"]<<"\n";
+        std::vector<int> ids = tok->Encode(Prompt["input"]);
+        // PrintEncodeResult(ids);
+        nlohmann::json sample;
+        sample["input_ids"] = ids;
+        sample["output_len"] = 256;
+        sample["delay"] = 0.0;
+        // std::cout<<sample;
+        samples.emplace_back(Sample{sample["input_ids"], sample["output_len"],sample["delay"]});
     }
     return samples;
 }
@@ -734,9 +772,9 @@ void benchmarkGptManager(std::filesystem::path const& engineDir, TrtGptModelType
         bufferManager.copyFrom(&beamWidth, ITensor::makeShape({1}), MemoryType::kPINNED)};
 
     // Load dataset
-    const auto samples = parseWorkloadJson(datasetPath, maxNumSamples);
+    
+    const auto samples = prepare_dataset_loadJson(datasetPath, maxNumSamples);
     const auto numSamples = samples.size();
-
     const int maxBeamWidth = beamWidth;
     auto recorder = std::make_shared<Recorder>(opCsvFile);
     uint64_t terminateReqId = numSamples + 1;
@@ -769,7 +807,6 @@ void benchmarkGptManager(std::filesystem::path const& engineDir, TrtGptModelType
             gptServer->enqueue(request);
         }
         gptServer->waitForEmpty();
-
         // Benchmark
         recorder->initialize();
         for (std::size_t i = 0; i < numSamples; ++i)
@@ -812,7 +849,7 @@ void benchmarkExecutor(std::filesystem::path const& engineDir, TrtGptModelType m
     }
 
     // Load dataset
-    const auto samples = parseWorkloadJson(datasetPath, maxNumSamples);
+    const auto samples = prepare_dataset_loadJson(datasetPath, maxNumSamples);
     const auto numSamples = samples.size();
 
     auto recorder = std::make_shared<Recorder>(opCsvFile);
@@ -1107,7 +1144,6 @@ int main(int argc, char* argv[])
         TLLM_LOG_ERROR("Unexpected log level: " + logLevel);
         return 1;
     }
-
     initTrtLlmPlugins(logger.get());
 
     if (api == "gptManager")

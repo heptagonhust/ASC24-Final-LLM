@@ -1,4 +1,4 @@
-# Install script for directory: /home/eigensystem/ASC24-Final-LLM/3rdparty/cxxopts
+# Install script for directory: /home/lym/ASC24-Final-LLM/3rdparty/cxxopts
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -44,6 +44,6 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("/home/eigensystem/ASC24-Final-LLM/3rdparty/json/include/cmake_install.cmake")
+  include("/home/lym/ASC24-Final-LLM/3rdparty/json/include/cmake_install.cmake")
 endif()
 
