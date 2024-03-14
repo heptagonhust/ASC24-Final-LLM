@@ -52,10 +52,12 @@ struct InstanceParams
 
     struct RequestsParams {
         fs::path datasetPath;
+        fs::path tokenzierPath;
         int maxNumSequences;
     };
 
     struct OutputParams {
+        fs::path outputPath;
         bool returnContextLogits;
         bool returnGenerationLogits;
     };
@@ -85,15 +87,15 @@ class InstanceConfig {
 public:
     InstanceConfig() = delete;
     InstanceConfig(
-        fs::path engineDir,
-        fs::path datasetPath,
         WorldConfig worldConfig, 
         texec::ExecutorConfig executorConfig,
         texec::SamplingConfig samplingConfig,
         texec::OutputConfig outputConfig,
         InstanceParams instanceParams)
-        : engineDir_(engineDir)
-        , datasetPath_(datasetPath)
+        : engineDir_(instanceParams.engineParams.engine_dir)
+        , datasetPath_(instanceParams.reqParams.datasetPath)
+        , tokenizerPath_(instanceParams.reqParams.tokenzierPath)
+        , outputPath_(instanceParams.outputParams.outputPath)
         , worldConfig_(std::move(worldConfig))
         , executorConfig_(std::move(executorConfig)) 
         , samplingConfig_(std::move(samplingConfig))
@@ -110,19 +112,22 @@ public:
 
     [[nodiscard]] std::shared_ptr<Recorder> getRecorder() const;
 
-    [[nodiscard]] Sequences getSequences() const;
-
-    [[nodiscard]] std::vector<texec::Request> getRequests(std::optional<size_t> num = std::nullopt) const;
-
     [[nodiscard]] const auto& getEngineDir() const { return engineDir_; }
     [[nodiscard]] const auto& getDatasetPath() const { return datasetPath_; }
+    [[nodiscard]] const auto& getTokenizerPath() const { return tokenizerPath_; }
+    [[nodiscard]] const auto& getOutputPath() const { return outputPath_; }
+
     [[nodiscard]] const auto& getWorldConfig() const { return worldConfig_; }
     [[nodiscard]] const auto& getExecutorConfig() const { return executorConfig_; }
+    [[nodiscard]] const auto& getSamplingConfig() const { return samplingConfig_; }
+    [[nodiscard]] const auto& getOutputConfig() const { return outputConfig_; }
     [[nodiscard]] const auto& getInstanceParams() const { return instanceParams_; }
 
 private:
     fs::path engineDir_;
     fs::path datasetPath_;
+    fs::path tokenizerPath_;
+    fs::path outputPath_;
 
     WorldConfig worldConfig_;
     texec::ExecutorConfig executorConfig_;

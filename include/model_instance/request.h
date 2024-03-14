@@ -1,12 +1,12 @@
 #pragma once
 #include <cstdint>
 #include <vector>
+#include <filesystem>
+#include <map>
 
-#include "tensorrt_llm/runtime/common.h"
 #include "tensorrt_llm/executor/executor.h"
 
-using namespace tensorrt_llm::runtime;
-
+namespace fs = std::filesystem;
 namespace texec = tensorrt_llm::executor;
 
 struct Sequence
@@ -18,14 +18,14 @@ struct Sequence
 
 using Sequences = std::vector<Sequence>;
 
-texec::Request makeExecutorRequest(
-    Sequence const& seq,
-    SizeType const& beamWidth,
-    std::optional<SizeType> const& eosId, 
-    std::optional<SizeType> const& padId, 
-    bool streaming = false,
-    bool const& returnContextLogits = false, 
-    bool const& returnGenerationLogits = false
+std::string LoadBytesFromFile(const fs::path& path);
+Sequences readDatasetFromJson(
+    const std::filesystem::path& datasetPath, 
+    const std::filesystem::path& tokenizerPath, 
+    int maxNumSequences
 );
-std::string LoadBytesFromFile(const std::string& path);
-Sequences parseDatasetJson(std::filesystem::path const& datasetPath, int maxNumSequences);
+void writeResultsToJson(
+    const std::filesystem::path& outputPath,
+    const std::filesystem::path& tokenizerPath,
+    std::map<texec::IdType, texec::Result> results
+);

@@ -1,18 +1,17 @@
-
+#include <chrono>
+#include <cxxopts.hpp>
+#include <filesystem>
+#include <iostream>
+#include <string>
 
 #include "tensorrt_llm/batch_manager/GptManager.h"
 #include "tensorrt_llm/common/logger.h"
 #include "tensorrt_llm/plugins/api/tllmPlugin.h"
 #include "tensorrt_llm/runtime/tllmLogger.h"
 
-
 #include "model_instance/config.h"
 #include "model_instance/instance.h"
 
-#include <chrono>
-#include <cxxopts.hpp>
-#include <iostream>
-#include <string>
 
 using namespace tensorrt_llm::batch_manager;
 using namespace tensorrt_llm::runtime;
@@ -25,7 +24,7 @@ namespace
 void singleGPUinstance(InstanceParams instanceParams) {
     Instance instance(std::move(instanceParams));
     instance.run();
-    instance.writeResultsToJson("output.json");
+    instance.writeResults();
 } 
 
 }
@@ -40,7 +39,11 @@ int main(int argc, char* argv[])
     options.add_options()(
         "type", "Batching type: IFB or V1(non-IFB) batching.", cxxopts::value<std::string>()->default_value("IFB"));
     options.add_options()("dataset", "Dataset that is used for benchmarking BatchManager.",
-        cxxopts::value<std::string>()->default_value(""));
+        cxxopts::value<std::string>()->default_value("data.json"));
+    options.add_options()("output", "Output file for the results.", 
+        cxxopts::value<std::string>()->default_value("output.json"));
+    options.add_options()("tokenizer", "Tokenizer of the model.", 
+        cxxopts::value<std::string>()->default_value("tokenizer.json"));
     options.add_options()(
         "output_csv", "Write output metrics to CSV", cxxopts::value<std::string>()->default_value(""));
     options.add_options()("max_num_sequences", "maximum number of sequences to use from dataset/generate",
@@ -188,11 +191,15 @@ int main(int argc, char* argv[])
     // Requests Parameters
     {
         instanceParams.reqParams.datasetPath = result["dataset"].as<std::string>();
+        instanceParams.reqParams.tokenzierPath = result["tokenizer"].as<std::string>();
         instanceParams.reqParams.maxNumSequences = result["max_num_sequences"].as<int>();
     }
 
     // Output Parameters
     {
+        // Argument outputPath
+        fs::path outputPath {result["output"].as<std::string>()};
+        instanceParams.outputParams.outputPath = outputPath;
         // Argument: Enable return context logits
         instanceParams.outputParams.returnContextLogits = result["return_context_logits"].as<bool>();
         // Argument: Enable return generation logits

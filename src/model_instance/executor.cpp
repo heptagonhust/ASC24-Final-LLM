@@ -1,6 +1,5 @@
 #include "model_instance/executor.h"
 #include <filesystem>
-#include <iostream>
 
 using namespace tensorrt_llm::runtime;
 
