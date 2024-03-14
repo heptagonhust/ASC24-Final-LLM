@@ -1,6 +1,8 @@
 #pragma once
-#include "model_instance/config.h"
 #include <memory>
+
+#include "model_instance/config.h"
+#include "model_instance/request.h"
 
 class Instance {
 public:

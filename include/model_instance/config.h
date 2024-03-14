@@ -9,10 +9,10 @@
 #include "tensorrt_llm/batch_manager/BatchManager.h"
 #include "tensorrt_llm/batch_manager/schedulerPolicy.h"
 #include "tensorrt_llm/executor/executor.h"
+#include "tensorrt_llm/executor/types.h"
 
 #include "model_instance/recorder.h"
 #include "model_instance/executor.h"
-#include "model_instance/request.h"
 
 namespace tb = tensorrt_llm::batch_manager;
 namespace tbb = tensorrt_llm::batch_manager::batch_scheduler;
@@ -64,6 +64,7 @@ struct InstanceParams
 
     struct SampleParams {
         SizeType maxBeamWidth;
+        std::optional<texec::FloatType> topP = 0.9;
     };
 
     struct LoggerParams {

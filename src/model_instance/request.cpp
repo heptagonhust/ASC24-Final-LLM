@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <nlohmann/json.hpp>
 #include <iostream>
+#include <string>
 
 #include "tensorrt_llm/common/assert.h"
 #include "tensorrt_llm/executor/executor.h"
@@ -11,6 +12,8 @@
 
 namespace fs = std::filesystem;
 namespace texec = tensorrt_llm::executor;
+
+using namespace std::literals;
 
 namespace {
 
@@ -64,7 +67,7 @@ Sequences readDatasetFromJson(
         // PrintEncodeResult(ids);
         nlohmann::json seq;
         seq["input_ids"] = ids;
-        seq["output_len"] = 20;
+        seq["output_len"] = 200;
         seq["delay"] = 0.0;
         // std::cout<<sample;
         seqs.emplace_back(Sequence{seq["input_ids"], seq["output_len"],seq["delay"]});
@@ -84,9 +87,9 @@ void writeResultsToJson(
     for (auto& [reqId, result] : results)
     {
         std::string decoded_prompt = tok->Decode(result.outputTokenIds[0]);
-        std::cout << "reqId: " << reqId << ", decode: \"" 
-                  << decoded_prompt << "\"" << std::endl;
-        j.push_back(result.outputTokenIds[0]);
+        // std::cout << "reqId: " << reqId << ", decode: \"" 
+        //           << decoded_prompt << "\"" << std::endl;
+        j.push_back("reqId: "s + std::to_string(reqId) + ", decode: \"" + decoded_prompt + "\""s);
     }
     std::ofstream outputFile(
         outputPath, 

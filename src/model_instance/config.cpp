@@ -1,4 +1,3 @@
-#include <filesystem>
 #include <memory>
 #include <optional>
 
@@ -34,7 +33,9 @@ std::shared_ptr<InstanceConfig> InstanceConfig::from_params(const InstanceParams
         instanceParams.engineParams.enableTrtOverlap
     };
     texec::SamplingConfig samplingConfig {
-        instanceParams.sampleParms.maxBeamWidth
+        instanceParams.sampleParms.maxBeamWidth,
+        std::nullopt,
+        instanceParams.sampleParms.topP
     };
     texec::OutputConfig outputConfig {
         false,
