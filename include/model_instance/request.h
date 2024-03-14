@@ -27,5 +27,5 @@ texec::Request makeExecutorRequest(
     bool const& returnContextLogits = false, 
     bool const& returnGenerationLogits = false
 );
-
+std::string LoadBytesFromFile(const std::string& path);
 Sequences parseDatasetJson(std::filesystem::path const& datasetPath, int maxNumSequences);

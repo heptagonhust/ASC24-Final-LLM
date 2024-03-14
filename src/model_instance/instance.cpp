@@ -1,11 +1,13 @@
 #include "model_instance/instance.h"
 #include "model_instance/config.h"
+#include "tensorrt_llm/tokenizers/tokenizers_cpp.h"
+#include "model_instance/request.h"
 
 #include <filesystem>
 #include <fstream>
 #include <memory>
 #include <nlohmann/json.hpp>
-
+#include <iostream>
 Instance::Instance(InstanceParams instanceParams) 
     : instanceParams_(instanceParams) 
 {
@@ -38,11 +40,16 @@ void Instance::run()
 
 void Instance::writeResultsToJson(const fs::path& outputPath) const
 {
+    auto blob = LoadBytesFromFile("tokenizer.json");
+    auto tok = tokenizers::Tokenizer::FromBlobJSON(blob);
+    
     auto results = executorServer_->getResults();
     nlohmann::json j;
     for (auto& [reqId, result] : results)
     {
-        j.push_back({result.outputTokenIds[0]});
+        std::string decoded_prompt = tok->Decode(result.outputTokenIds[0]);
+        std::cout << "decode=\"" << decoded_prompt << "\"" << std::endl;
+        j.push_back(result.outputTokenIds[0]);
     }
     std::ofstream outputFile(outputPath, std::ios::out);
     outputFile << j << std::endl;

@@ -45,12 +45,21 @@ add_library(nvinfer SHARED IMPORTED)
 set(NVINFER_LOCATION "${TRT_LIB_DIR}/libnvinfer.so")
 set_property(TARGET nvinfer PROPERTY IMPORTED_LOCATION ${NVINFER_LOCATION})
 
+add_library(libtokenizers_cpp SHARED IMPORTED)
+set(LIBTOKENIZERS_CPP_LOCATION "${PROJECT_SOURCE_DIR}/libs/libtokenizers_cpp.a")
+set_property(TARGET libtokenizers_cpp PROPERTY IMPORTED_LOCATION ${LIBTOKENIZERS_CPP_LOCATION})
+
+add_library(libtokenizers_c SHARED IMPORTED)
+set(LIBTOKENIZERS_C_LOCATION "${PROJECT_SOURCE_DIR}/libs/libtokenizers_c.a")
+set_property(TARGET libtokenizers_c PROPERTY IMPORTED_LOCATION ${LIBTOKENIZERS_C_LOCATION})
 
 set(SHARED_TARGETS 
     tensorrt_llm 
     libnvinfer_plugin_tensorrt_llm
     libth_common
-    nvinfer)
+    nvinfer
+    libtokenizers_cpp
+    libtokenizers_c)
 
 FILE(GLOB_RECURSE SOURCE CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/src/*.cpp")
 add_executable(${INSTANCE_NAME} ${SOURCE})
