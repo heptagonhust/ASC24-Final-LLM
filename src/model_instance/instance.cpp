@@ -1,16 +1,19 @@
 #include <memory>
-#include <nlohmann/json.hpp>
 #include <optional>
 #include <vector>
 #include <string>
+#include <iostream>
+#include <cstdlib>
+#include <nlohmann/json.hpp>
+
+#include "rpc/client.h"
+
 #include "model_instance/instance.h"
 #include "model_instance/config.h"
 #include "model_instance/config.h"
-#include "rpc/client.h"
-#include "multinodes/multinodes_server.h"
 
-Instance::Instance(InstanceParams instanceParams,std::string client_id)
-    : instanceParams_(instanceParams),client_id_(client_id)
+Instance::Instance(InstanceParams instanceParams)
+    : instanceParams_(instanceParams)
 {
     config_ = InstanceConfig::from_params(instanceParams_);
     recorder_ = config_->getRecorder();
@@ -19,7 +22,10 @@ Instance::Instance(InstanceParams instanceParams,std::string client_id)
 
 void Instance::run()
 {
-    rpc::client client(client_id_, 10000);
+    rpc::client client(
+        instanceParams_.rpcParams.rpcAddress, 
+        instanceParams_.rpcParams.rpcPort
+    );
     // Warm up
     {
         Sequences seqs_warmup;
@@ -30,22 +36,25 @@ void Instance::run()
         executorServer_->waitForResponses(reqs.size(), true);
     }
     recorder_->initialize();
+
+    // execute
     Sequences seqs = client.call("getseqs").as<Sequences>();
-    while(1){
+    while (1) {
         auto reqs = getRequests(seqs);
         executorServer_->enqueue(std::move(reqs));
-        executorServer_->waitForResponses(reqs.size());
+        executorServer_->waitForGetReqs(100);
         seqs = client.call("getseqs").as<Sequences>();
-        if(seqs.size()==0)
+        if(seqs.size() == 0)
             break;
     }
+    executorServer_->waitForResponses();
     recorder_->finalize();
     recorder_->calculateMetrics();
     recorder_->report();
     recorder_->writeOpMetricsToCsv();
 
-    for (auto& [reqId, result] : executorServer_->getResults())
-    {
+    auto results = executorServer_->getResults();
+    for (auto& [reqId, result] : results) {
         client.call("outseqs_back",result.outputTokenIds[0]);
     }
 }

@@ -11,21 +11,20 @@
 
 #include "model_instance/config.h"
 #include "model_instance/instance.h"
-#include "rpc/client.h"
+
 using namespace tensorrt_llm::batch_manager;
 using namespace tensorrt_llm::runtime;
 
-namespace trt = nvinfer1;
 
 namespace
 {
-void multiGPUinstance(InstanceParams instanceParams) {
 
-    std::string client_id = "192.168.250.100";
-    Instance instance(std::move(instanceParams),client_id);
+void singleGPUinstance(InstanceParams instanceParams) {
+    Instance instance(std::move(instanceParams));
     instance.run();
 }
-}
+
+} // namespace
 
 int main(int argc, char* argv[])
 {
@@ -35,7 +34,8 @@ int main(int argc, char* argv[])
     // TODO(rkobus): remove because unused
     options.add_options()("engine_dir", "Directory that store the engines.", cxxopts::value<std::string>());
     options.add_options()(
-        "type", "Batching type: IFB or V1(non-IFB) batching.", cxxopts::value<std::string>()->default_value("IFB"));
+        "eos_id", "Specify the end-of-sequence token id.", cxxopts::value<int>()->default_value("-1"));
+    options.add_options()("pad_id", "Specify the padding token id.", cxxopts::value<int>());
     options.add_options()("output", "Output file for the results.", 
         cxxopts::value<std::string>()->default_value("output.json"));
     options.add_options()(
@@ -44,9 +44,6 @@ int main(int argc, char* argv[])
         "beam_width", "Specify beam width you want to benchmark.", cxxopts::value<int>()->default_value("1"));
     options.add_options()(
         "warm_up", "Specify warm up iterations before benchmark starts.", cxxopts::value<int>()->default_value("2"));
-    options.add_options()(
-        "eos_id", "Specify the end-of-sequence token id.", cxxopts::value<int>()->default_value("-1"));
-    options.add_options()("pad_id", "Specify the padding token id.", cxxopts::value<int>());
     options.add_options()("max_tokens_in_paged_kvcache", "Max tokens in paged K-V Cache.", cxxopts::value<int>());
     options.add_options()(
         "kv_cache_free_gpu_mem_fraction", "K-V Cache Free Gpu Mem Fraction.", cxxopts::value<float>());
@@ -61,18 +58,16 @@ int main(int argc, char* argv[])
         "return_context_logits", "Whether to return context logits.", cxxopts::value<bool>()->default_value("false"));
     options.add_options()("return_generation_logits", "Whether to return generation logits.",
         cxxopts::value<bool>()->default_value("false"));
-
     options.add_options()("scheduler_policy", "Choose scheduler policy between max_utilization/guaranteed_no_evict.",
         cxxopts::value<std::string>()->default_value("guaranteed_no_evict"));
-
-    options.add_options()("static_emulated_batch_size",
-        "Emulate static batching performance with the provided batch size.", cxxopts::value<int>());
     options.add_options()("log_level", "Choose log level between verbose/info/warning/error/internal_error.",
         cxxopts::value<std::string>()->default_value("error"));
     options.add_options()("log_iteration_data", "On each decoder iteration, print batch state metadata.",
         cxxopts::value<bool>()->default_value("false"));
     options.add_options()("wait_sleep", "Specify how many milliseconds to sleep each iteration of waitForEmpty loop.",
         cxxopts::value<int>()->default_value("25"));
+    options.add_options()("rpc_address", "Specify the address of the server.", cxxopts::value<std::string>());
+    options.add_options()("rpc_port", "Specify the port of the server.", cxxopts::value<int>());
 
     auto result = options.parse(argc, argv);
 
@@ -118,19 +113,6 @@ int main(int argc, char* argv[])
 
     // Scheduler Parameters
     {
-        // Argument: Batching Type
-        auto const type = result["type"].as<std::string>();
-        if (type == "V1") {
-            instanceParams.scheduleParams.BatchingType = TrtGptModelType::V1;
-        }
-        else if (type == "IFB") {
-            instanceParams.scheduleParams.BatchingType = TrtGptModelType::InflightFusedBatching;
-        }
-        else {
-            TLLM_LOG_ERROR("Unexpected batching type: %s", type.c_str());
-            return 1;
-        }
-
         // Argument: Scheduler policy
         auto const schedulerPolicyArg = result["scheduler_policy"].as<std::string>();
         if (schedulerPolicyArg == "max_utilization") {
@@ -204,28 +186,34 @@ int main(int argc, char* argv[])
         instanceParams.loggerParams.opCsvFile = result["output_csv"].as<std::string>();
     }
 
+    // rpc Parameters
+    {
+        instanceParams.rpcParams.rpcAddress = result["rpc_address"].as<std::string>();
+        instanceParams.rpcParams.rpcPort = result["rpc_port"].as<int>();
+    }
+
     // Argument: Log level
     auto logger = std::make_shared<TllmLogger>();
     auto const logLevel = result["log_level"].as<std::string>();
     if (logLevel == "verbose")
     {
-        logger->setLevel(trt::ILogger::Severity::kVERBOSE);
+        logger->setLevel(nvinfer1::ILogger::Severity::kVERBOSE);
     }
     else if (logLevel == "info")
     {
-        logger->setLevel(trt::ILogger::Severity::kINFO);
+        logger->setLevel(nvinfer1::ILogger::Severity::kINFO);
     }
     else if (logLevel == "warning")
     {
-        logger->setLevel(trt::ILogger::Severity::kWARNING);
+        logger->setLevel(nvinfer1::ILogger::Severity::kWARNING);
     }
     else if (logLevel == "error")
     {
-        logger->setLevel(trt::ILogger::Severity::kERROR);
+        logger->setLevel(nvinfer1::ILogger::Severity::kERROR);
     }
     else if (logLevel == "internal_error")
     {
-        logger->setLevel(trt::ILogger::Severity::kINTERNAL_ERROR);
+        logger->setLevel(nvinfer1::ILogger::Severity::kINTERNAL_ERROR);
     }
     else
     {
@@ -237,7 +225,7 @@ int main(int argc, char* argv[])
 
     try
     {
-        multiGPUinstance(std::move(instanceParams));
+        singleGPUinstance(std::move(instanceParams));
     }
     catch (const std::exception& e)
     {

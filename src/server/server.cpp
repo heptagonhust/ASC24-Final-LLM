@@ -1,4 +1,3 @@
-#include <chrono>
 #include <cxxopts.hpp>
 #include <filesystem>
 #include <iostream>
@@ -8,14 +7,19 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 
-#include "multinodes/multinodes_server.h"
-
+#include "rpc/server.h"
+#include "rpc/this_server.h"
+#include "rpc/msgpack.hpp"
 #include "tokenizers/tokenizers_cpp.h"
 
-#include "rpc/server.h"
-#include "rpc/msgpack.hpp"
+#include "sequences/sequences.h"
+
+
 
 namespace fs = std::filesystem;
+using SeqQ = std::queue<Sequence>;
+using outputTokenIds = std::vector<int32_t>; 
+using ResultQ = std::queue<outputTokenIds>;
 
 std::string LoadBytesFromFile(const fs::path& path) {
     std::ifstream fs(path, std::ios::in | std::ios::binary);
@@ -31,6 +35,7 @@ std::string LoadBytesFromFile(const fs::path& path) {
     fs.read(data.data(), size);
     return data;
 }
+
 void PrintEncodeResult(const std::vector<int>& ids) {
     std::cout << "tokens=[";
     for (size_t i = 0; i < ids.size(); ++i) {
@@ -39,9 +44,11 @@ void PrintEncodeResult(const std::vector<int>& ids) {
     }
     std::cout << "]" << std::endl;
 }
+
 SeqQ readDatasetFromJson(
     const std::filesystem::path& datasetPath, 
-    const std::filesystem::path& tokenizerPath){   
+    const std::filesystem::path& tokenizerPath
+){   
     auto blob = LoadBytesFromFile(tokenizerPath);
     auto tok = tokenizers::Tokenizer::FromBlobJSON(blob);
     auto constexpr allowExceptions = true;
@@ -64,6 +71,7 @@ SeqQ readDatasetFromJson(
     }
     return seqs;
 }
+
 void writeResultsToJson(
     const std::filesystem::path& outputPath,
     const std::filesystem::path& tokenizerPath,
@@ -98,17 +106,27 @@ int main(int argc, char* argv[]) {
         cxxopts::value<std::string>()->default_value("tokenizer.json"));
     options.add_options()("output", "Output file for the results.", 
         cxxopts::value<std::string>()->default_value("output.json"));
+    options.add_options()("server_addr", "Specify the address of the server.", 
+        cxxopts::value<std::string>());
+    options.add_options()("server_port", "Specify the port of the server.",
+        cxxopts::value<int>());
+    options.add_options()("batch_size", "Specify the transmitted batch size of seqs in a single rpc request.",
+        cxxopts::value<int>()->default_value("200"));
     auto result = options.parse(argc, argv);
     std::string datasetPath = result["dataset"].as<std::string>();
     std::string tokenizerPath = result["tokenizer"].as<std::string>();
     std::string outputPath = result["output"].as<std::string>();
+    std::string addr = result["server_addr"].as<std::string>();
+    int port = result["server_port"].as<int>();
+    int batch_size = result["batch_size"].as<int>();
     SeqQ Queue_input = readDatasetFromJson(datasetPath,tokenizerPath);
+std::cout << "server got input" << std::endl;
     ResultQ Queue_output;
     int length = Queue_input.size();
-    rpc::server srv("192.168.250.100",10000);
-    int batch_size = 200;
+    rpc::server srv(addr, port);
     srv.bind("getseqs",[&](){
         Sequences seqs;
+        std::cout << "Queue_input.size():" << Queue_input.size() << "\n";
         if(Queue_input.size() > 0){
             for (int i = 0; i < batch_size; ++i) {
                 if(Queue_input.size() == 0)
@@ -127,12 +145,10 @@ int main(int argc, char* argv[]) {
         Queue_output.push(outIdqueue);
         if (Queue_output.size() == length) {
             writeResultsToJson(outputPath, tokenizerPath, Queue_output);
-            srv.stop();
+            rpc::this_server().stop();
         }
     });
+std::cout << "server start" << std::endl;
     srv.run();
-    //writeResultsToJson(outputPath,tokenizerPath,Queue_output);
-    // std::cout << "Press [ENTER] to exit the server." << std::endl;
-    // std::cin.ignore();
     return 0;
 }

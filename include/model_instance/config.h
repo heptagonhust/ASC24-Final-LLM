@@ -34,7 +34,6 @@ struct InstanceParams
     };
 
     struct ScheduleParams {
-        tb::TrtGptModelType BatchingType;
         tbb::SchedulerPolicy schedulerPolicy;
     };
 
@@ -64,6 +63,11 @@ struct InstanceParams
         bool logIterationData;
         std::string opCsvFile;
     };
+
+    struct RpcParams {
+        std::string rpcAddress;
+        int rpcPort;
+    };
     
     ModelParams modelParams;
     EngineParams engineParams;
@@ -73,6 +77,8 @@ struct InstanceParams
     OutputParams outputParams;
     SampleParams sampleParms;
     LoggerParams loggerParams;
+    RpcParams rpcParams;
+    int rank;
 };
 
 class InstanceConfig {

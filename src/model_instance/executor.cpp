@@ -1,5 +1,8 @@
-#include "model_instance/executor.h"
 #include <filesystem>
+#include <chrono>
+#include <thread>
+
+#include "model_instance/executor.h"
 
 using namespace tensorrt_llm::runtime;
 
@@ -40,6 +43,16 @@ void ExecutorServer::enqueue(std::vector<texec::Request> requests, bool warmup)
     catch (const std::exception& e)
     {
         TLLM_THROW("%s", e.what());
+    }
+    return;
+}
+
+void ExecutorServer::waitForGetReqs(SizeType threshold)
+{
+    SizeType numReadyResponse = executor_->getNumResponsesReady();
+    while (numReadyResponse < activeCount_ - threshold) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        numReadyResponse = executor_->getNumResponsesReady();
     }
     return;
 }
