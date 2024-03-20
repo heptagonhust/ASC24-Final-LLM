@@ -18,7 +18,7 @@
 
 #include "tensorrt_llm/executor/tensor.h"
 #include "tensorrt_llm/executor/types.h"
-
+#include "rpc/msgpack.hpp"
 #include <chrono>
 #include <cstdint>
 #include <deque>
@@ -203,10 +203,11 @@ public:
     void setSpeculativeDecodingConfig(SpeculativeDecodingConfig specDecodingConfig);
     void setPromptTuningConfig(PromptTuningConfig pTuningConfig);
     void setLoraConfig(LoraConfig loraConfig);
-
+    
 private:
     class Impl;
     std::unique_ptr<Impl> mImpl;
+    //MSGPACK_DEFINE_ARRAY(Impl)
 };
 
 /// @brief Struct that holds the generation result

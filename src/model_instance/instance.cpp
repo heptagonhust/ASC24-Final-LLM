@@ -2,55 +2,58 @@
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <vector>
-
+#include <string>
 #include "model_instance/instance.h"
 #include "model_instance/config.h"
-#include "model_instance/request.h"
 #include "model_instance/config.h"
+#include "rpc/client.h"
+#include "multinodes/multinodes_server.h"
 
-
-Instance::Instance(InstanceParams instanceParams) 
-    : instanceParams_(instanceParams) 
+Instance::Instance(InstanceParams instanceParams,std::string client_id)
+    : instanceParams_(instanceParams),client_id_(client_id)
 {
     config_ = InstanceConfig::from_params(instanceParams_);
     recorder_ = config_->getRecorder();
     executorServer_ = config_->getExecutorServer(recorder_);
-    seqs_ =  readDatasetFromJson(
-        config_->getDatasetPath(),
-        config_->getTokenizerPath(),
-        instanceParams_.reqParams.maxNumSequences
-    );
 }
 
 void Instance::run()
 {
+    rpc::client client(client_id_, 10000);
     // Warm up
     {
-        int warm_up_iterations = instanceParams_.serverParams.warm_up_iterations;
-        auto reqs = getRequests(warm_up_iterations);
+        Sequences seqs_warmup;
+        seqs_warmup.push_back(Sequence{ {2300, 118, 9022, 504, 6390, 5002, 1221, 859, 221, 768, 33532, 5084, 521, 44528, 1310, 859}, 200 });
+        seqs_warmup.push_back(Sequence{ {33733, 429, 5865, 20003, 1603, 329, 11007, 859}, 200 });
+        auto reqs = getRequests(seqs_warmup);
         executorServer_->enqueue(std::move(reqs), true);
         executorServer_->waitForResponses(reqs.size(), true);
     }
     recorder_->initialize();
-    {
-        auto reqs = getRequests();
+    Sequences seqs = client.call("getseqs").as<Sequences>();
+    while(1){
+        auto reqs = getRequests(seqs);
         executorServer_->enqueue(std::move(reqs));
         executorServer_->waitForResponses(reqs.size());
+        seqs = client.call("getseqs").as<Sequences>();
+        if(seqs.size()==0)
+            break;
     }
     recorder_->finalize();
     recorder_->calculateMetrics();
     recorder_->report();
     recorder_->writeOpMetricsToCsv();
+
+    for (auto& [reqId, result] : executorServer_->getResults())
+    {
+        client.call("outseqs_back",result.outputTokenIds[0]);
+    }
 }
 
-
-std::vector<texec::Request> Instance::getRequests(std::optional<size_t> num) const {
-    const auto& seqs = seqs_;
+std::vector<texec::Request> Instance::getRequests(Sequences seqs) const {
     auto numSequences = seqs.size();
-
-    num = num.has_value() ? std::min(num.value(), numSequences) : numSequences;
     std::vector<texec::Request> requests;
-    for (int i = 0; i < num; ++i) {
+    for (int i = 0; i < numSequences; ++i) {
         requests.push_back(
             texec::Request {
                 seqs[i].inputIds,
@@ -64,12 +67,4 @@ std::vector<texec::Request> Instance::getRequests(std::optional<size_t> num) con
         );
     }
     return requests;
-}
-
-void Instance::writeResults() const
-{
-    writeResultsToJson(
-        config_->getOutputPath(), 
-        config_->getTokenizerPath(),
-        std::move(executorServer_->getResults()));
 }
