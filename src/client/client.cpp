@@ -64,6 +64,7 @@ int main(int argc, char* argv[])
         cxxopts::value<std::string>()->default_value("error"));
     options.add_options()("log_iteration_data", "On each decoder iteration, print batch state metadata.",
         cxxopts::value<bool>()->default_value("false"));
+    options.add_options()("show_result", "Show the result of the model.", cxxopts::value<bool>()->default_value("false"));
     options.add_options()("wait_sleep", "Specify how many milliseconds to sleep each iteration of waitForEmpty loop.",
         cxxopts::value<int>()->default_value("25"));
     options.add_options()("rpc_address", "Specify the address of the server.", cxxopts::value<std::string>());
@@ -184,6 +185,7 @@ int main(int argc, char* argv[])
 
         // Argument: Output metrics CSV
         instanceParams.loggerParams.opCsvFile = result["output_csv"].as<std::string>();
+        instanceParams.loggerParams.showResults = result["show_result"].as<bool>();
     }
 
     // rpc Parameters

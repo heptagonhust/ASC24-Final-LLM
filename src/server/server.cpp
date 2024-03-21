@@ -5,6 +5,7 @@
 #include <vector>
 #include <queue>
 #include <fstream>
+#include <chrono>
 #include <nlohmann/json.hpp>
 
 #include "rpc/server.h"
@@ -15,11 +16,13 @@
 #include "sequences/sequences.h"
 
 
-
 namespace fs = std::filesystem;
 using SeqQ = std::queue<Sequence>;
 using outputTokenIds = std::vector<int32_t>; 
 using ResultQ = std::queue<outputTokenIds>;
+
+namespace 
+{
 
 std::string LoadBytesFromFile(const fs::path& path) {
     std::ifstream fs(path, std::ios::in | std::ios::binary);
@@ -96,6 +99,51 @@ void writeResultsToJson(
     outputFile << j << std::endl;
 }
 
+
+class Recorder
+{
+public:
+    Recorder() = default;
+
+    void initialize() {
+        mStart = std::chrono::steady_clock::now();
+    }
+
+    void finalize() {
+        mEnd = std::chrono::steady_clock::now();
+    }
+
+    void record(outputTokenIds& tokenIds) {
+        mNumSeqs += 1;
+        mNumTokens += tokenIds.size();
+    }
+
+    void calculateMetrics() {
+        mTotalLatency = std::chrono::duration<float, std::milli>(mEnd - mStart).count();
+        mSeqThroughput = mNumSeqs / (mTotalLatency / 1000);
+        mTokenThroughput = mNumTokens / (mTotalLatency / 1000);
+    }
+
+    void report() {
+        printf("[SERVER BENCHMARK] num_seqs %d\n", mNumSeqs);
+        printf("[SERVER BENCHMARK] total_latency(ms) %.2f\n", mTotalLatency);
+        printf("[SERVER BENCHMARK] seq_throughput(seq/sec) %.2f\n", mSeqThroughput);
+        printf("[SERVER BENCHMARK] token_throughput(token/sec) %.2f\n", mTokenThroughput);
+    }
+
+private:
+    std::chrono::time_point<std::chrono::steady_clock> mStart;
+    std::chrono::time_point<std::chrono::steady_clock> mEnd;
+    int mNumSeqs{};
+    int mNumTokens{};
+    float mTotalLatency{};
+    float mSeqThroughput{};
+    float mTokenThroughput{};
+}; // class Recorder
+
+} // namespace
+
+
 int main(int argc, char* argv[]) {
     
     cxxopts::Options options(
@@ -120,13 +168,18 @@ int main(int argc, char* argv[]) {
     int port = result["server_port"].as<int>();
     int batch_size = result["batch_size"].as<int>();
     SeqQ Queue_input = readDatasetFromJson(datasetPath,tokenizerPath);
-std::cout << "server got input" << std::endl;
     ResultQ Queue_output;
-    int length = Queue_input.size();
+    int num_seqs = Queue_input.size();
+
+    Recorder recorder;
     rpc::server srv(addr, port);
     srv.bind("getseqs",[&](){
+        if (Queue_input.size() == num_seqs) {
+            recorder.initialize();
+        }
         Sequences seqs;
         std::cout << "Queue_input.size():" << Queue_input.size() << "\n";
+        std::flush(std::cout);
         if(Queue_input.size() > 0){
             for (int i = 0; i < batch_size; ++i) {
                 if(Queue_input.size() == 0)
@@ -141,14 +194,19 @@ std::cout << "server got input" << std::endl;
         return seqs;
     });
 
-    srv.bind("outseqs_back",[&](outputTokenIds outIdqueue){
-        Queue_output.push(outIdqueue);
-        if (Queue_output.size() == length) {
+    srv.bind("outseqs_back",[&](outputTokenIds tokenIds){
+        recorder.record(tokenIds);
+        Queue_output.push(tokenIds);
+        if (Queue_output.size() == num_seqs) {
+            recorder.finalize();
+            recorder.calculateMetrics();
+            recorder.report();
+
             writeResultsToJson(outputPath, tokenizerPath, Queue_output);
             rpc::this_server().stop();
         }
     });
-std::cout << "server start" << std::endl;
+
     srv.run();
     return 0;
 }

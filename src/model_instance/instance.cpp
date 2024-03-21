@@ -2,8 +2,6 @@
 #include <optional>
 #include <vector>
 #include <string>
-#include <iostream>
-#include <cstdlib>
 #include <nlohmann/json.hpp>
 
 #include "rpc/client.h"
@@ -42,7 +40,7 @@ void Instance::run()
     while (1) {
         auto reqs = getRequests(seqs);
         executorServer_->enqueue(std::move(reqs));
-        executorServer_->waitForGetReqs(100);
+        executorServer_->waitForGetReqs(300);
         seqs = client.call("getseqs").as<Sequences>();
         if(seqs.size() == 0)
             break;
@@ -50,8 +48,10 @@ void Instance::run()
     executorServer_->waitForResponses();
     recorder_->finalize();
     recorder_->calculateMetrics();
-    recorder_->report();
     recorder_->writeOpMetricsToCsv();
+    if (instanceParams_.loggerParams.showResults) {
+        recorder_->report();
+    }
 
     auto results = executorServer_->getResults();
     for (auto& [reqId, result] : results) {

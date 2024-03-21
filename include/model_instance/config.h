@@ -62,6 +62,7 @@ struct InstanceParams
     struct LoggerParams {
         bool logIterationData;
         std::string opCsvFile;
+        bool showResults;
     };
 
     struct RpcParams {
