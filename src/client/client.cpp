@@ -69,6 +69,8 @@ int main(int argc, char* argv[])
         cxxopts::value<int>()->default_value("25"));
     options.add_options()("rpc_address", "Specify the address of the server.", cxxopts::value<std::string>());
     options.add_options()("rpc_port", "Specify the port of the server.", cxxopts::value<int>());
+    options.add_options()("rpc_seqs_threshold", "Specify the threshold number of seqs that trigger the next rpc getseqs call", 
+        cxxopts::value<int>()->default_value("300"));
 
     auto result = options.parse(argc, argv);
 
@@ -192,6 +194,7 @@ int main(int argc, char* argv[])
     {
         instanceParams.rpcParams.rpcAddress = result["rpc_address"].as<std::string>();
         instanceParams.rpcParams.rpcPort = result["rpc_port"].as<int>();
+        instanceParams.rpcParams.rpcNseqsThreshold = result["rpc_seqs_threshold"].as<int>();
     }
 
     // Argument: Log level
