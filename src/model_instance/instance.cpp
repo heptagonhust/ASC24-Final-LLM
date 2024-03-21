@@ -54,9 +54,12 @@ void Instance::run()
     }
 
     auto results = executorServer_->getResults();
+    std::vector<std::vector<int32_t>> outIds;
     for (auto& [reqId, result] : results) {
-        client.call("outseqs_back",result.outputTokenIds[0]);
+        outIds.push_back(result.outputTokenIds[0]);
     }
+    client.call("outseqs_back",outIds);
+
 }
 
 std::vector<texec::Request> Instance::getRequests(Sequences seqs) const {

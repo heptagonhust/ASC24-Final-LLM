@@ -19,7 +19,7 @@
 namespace fs = std::filesystem;
 using SeqQ = std::queue<Sequence>;
 using outputTokenIds = std::vector<int32_t>; 
-using ResultQ = std::queue<outputTokenIds>;
+using ResultV = std::vector<outputTokenIds>;
 
 namespace 
 {
@@ -78,17 +78,16 @@ SeqQ readDatasetFromJson(
 void writeResultsToJson(
     const std::filesystem::path& outputPath,
     const std::filesystem::path& tokenizerPath,
-    ResultQ Q
+    ResultV V
 ){
     auto blob = LoadBytesFromFile(tokenizerPath);
     auto tok = tokenizers::Tokenizer::FromBlobJSON(blob);
     
     nlohmann::json j;
-    int size = Q.size();
+    int size = V.size();
     for (int i = 0;i < size; i++)
     {
-        outputTokenIds output = Q.front();
-        Q.pop();
+        outputTokenIds output = V[i];
         std::string decoded_prompt = tok->Decode(output);
         j.push_back("reqId: " + std::to_string(i) + ", decode: \"" + decoded_prompt + "\"");
     }
@@ -168,7 +167,7 @@ int main(int argc, char* argv[]) {
     int port = result["server_port"].as<int>();
     int batch_size = result["batch_size"].as<int>();
     SeqQ Queue_input = readDatasetFromJson(datasetPath,tokenizerPath);
-    ResultQ Queue_output;
+    ResultV Vector_output;
     int num_seqs = Queue_input.size();
 
     Recorder recorder;
@@ -194,15 +193,19 @@ int main(int argc, char* argv[]) {
         return seqs;
     });
 
-    srv.bind("outseqs_back",[&](outputTokenIds tokenIds){
-        recorder.record(tokenIds);
-        Queue_output.push(tokenIds);
-        if (Queue_output.size() == num_seqs) {
+    srv.bind("outseqs_back",[&](ResultV outIds){
+        
+
+        for(int i = 0; i < outIds.size(); i++){
+            recorder.record(outIds[i]);
+            Vector_output.push_back(outIds[i]);
+        }
+        if (Vector_output.size() == num_seqs) {
             recorder.finalize();
             recorder.calculateMetrics();
             recorder.report();
 
-            writeResultsToJson(outputPath, tokenizerPath, Queue_output);
+            writeResultsToJson(outputPath, tokenizerPath, Vector_output);
             rpc::this_server().stop();
         }
     });
