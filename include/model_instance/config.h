@@ -64,7 +64,9 @@ struct InstanceParams
 
     struct SampleParams {
         SizeType maxBeamWidth;
-        std::optional<texec::FloatType> topP = 0.9;
+        std::optional<texec::FloatType> topK = 50;
+        std::optional<texec::FloatType> topP = 1.0;
+        std::optional<texec::FloatType> temperature = 1.0;
     };
 
     struct LoggerParams {

@@ -34,8 +34,13 @@ std::shared_ptr<InstanceConfig> InstanceConfig::from_params(const InstanceParams
     };
     texec::SamplingConfig samplingConfig {
         instanceParams.sampleParms.maxBeamWidth,
+        50,
+        1.0,
         std::nullopt,
-        instanceParams.sampleParms.topP
+        std::nullopt,
+        std::nullopt,
+        std::nullopt,
+        1.0
     };
     texec::OutputConfig outputConfig {
         false,

@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <fstream>
 #include <filesystem>
 #include <nlohmann/json.hpp>
@@ -63,11 +64,11 @@ Sequences readDatasetFromJson(
         if (seqs.size() >= maxNumSequences)
             break;
         // std::cout<<"Prompt:"<<Prompt["input"]<<"\n";
-        std::vector<int> ids = tok->Encode(Prompt["input"]);
+        std::vector<int> ids = tok->Encode(Prompt);
         // PrintEncodeResult(ids);
         nlohmann::json seq;
         seq["input_ids"] = ids;
-        seq["output_len"] = 200;
+        seq["output_len"] = 20;
         seq["delay"] = 0.0;
         // std::cout<<sample;
         seqs.emplace_back(Sequence{seq["input_ids"], seq["output_len"],seq["delay"]});
@@ -90,6 +91,40 @@ void writeResultsToJson(
         // std::cout << "reqId: " << reqId << ", decode: \"" 
         //           << decoded_prompt << "\"" << std::endl;
         j.push_back("reqId: "s + std::to_string(reqId) + ", decode: \"" + decoded_prompt + "\""s);
+        
+        // if (result.generationLogits.has_value()) {
+        //     // auto& tensorPtr = result.generationLogits.value();
+        //     // std::string tensorString = tensorString(*tensorPtr);
+        //     auto Logits = (*result.generationLogits);
+        //     // std::string jsonValue = (std::string)Logits;
+        //     // j.push_back(jsonValue);
+        //     //std::cout <<(*result.generationLogits)->getDataType()<<"\n";
+
+        //     auto data = static_cast<const float*>(Logits->getData());
+        //     auto shape = Logits->getShape();
+        //     // std::cout<<shape[0]<<std::endl;
+        //     // std::cout<<shape[1]<<std::endl;
+        //     // std::cout<<shape[2]<<std::endl;
+        //     if (shape.size() <= 2)
+        //     {
+        //         std::cout << "Tensor doesn't have data in dimension 2." << std::endl;
+        //     }
+        //     else{
+        //         size_t startIndex = 0;
+        //         size_t endIndex = shape[2]; 
+        //         std::cout<<shape[2];
+        //         std::string logits;
+        //         for (size_t i = startIndex; i < endIndex; ++i)
+        //         {
+        //             float value = data[i];
+        //             if(i < endIndex-1)
+        //                 logits = logits + std::to_string(value) + ",";
+        //             else
+        //                 logits = logits + std::to_string(value);
+        //         }
+        //         j.push_back(logits);
+        //     }
+        // }
     }
     std::ofstream outputFile(
         outputPath, 
