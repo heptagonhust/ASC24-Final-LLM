@@ -5,11 +5,13 @@
 #include <memory>
 
 #include "tensorrt_llm/batch_manager/inferenceRequest.h"
+#include "tensorrt_llm/executor/executor.h"
 #include "tensorrt_llm/runtime/common.h"
 
 
 using namespace tensorrt_llm::runtime;
 using namespace tensorrt_llm::batch_manager;
+namespace texec = tensorrt_llm::executor;
 
 struct BenchInfo
 {
@@ -62,7 +64,7 @@ public:
         std::chrono::time_point<std::chrono::steady_clock> const& start
     );
 
-    void recordEnd(uint64_t requestId);
+    void recordEnd(uint64_t requestId, texec::Result &result);
 
     void calculateMetrics();
     void report();
