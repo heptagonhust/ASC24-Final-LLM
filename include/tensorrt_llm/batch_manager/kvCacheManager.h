@@ -176,6 +176,13 @@ public:
         mNumTokens += n;
     }
 
+    void removeTokens(SizeType n)
+    {
+        TLLM_CHECK(n <= mNumTokens);
+        TLLM_CHECK(mNumTokens - n >= 0);
+        mNumTokens -= n;
+    }
+
     [[nodiscard]] SizeType getSequenceSlotIdx() const
     {
         return mSeqSlotIdx;
@@ -211,6 +218,14 @@ public:
         for (auto& beamBlockIds : mCacheBlockIds)
         {
             beamBlockIds.clear();
+        }
+    }
+
+    void removeLastBlock()
+    {
+        for (auto& beamBlockIds : mCacheBlockIds)
+        {
+            beamBlockIds.pop_back();
         }
     }
 
@@ -280,32 +295,40 @@ public:
     //! \brief Simulate freeing all blocks for that sequence to check impact on number of free blocks
     void schedulingReleaseBlocks(GenerationRequest& sequence);
 
-    [[nodiscard]] SizeType getNumFreeBlocks() const
+    //! \brief Release last block in the sequence
+    void releaseLastBlock(GenerationRequest& sequence);
+
+    [[nodiscard]] SizeType getNumFreeBlocks() const noexcept
     {
         return mFreeBlocks.size();
     }
 
-    [[nodiscard]] SizeType getNumAllocatedBlocks() const
+    [[nodiscard]] SizeType getNumReusedBlocks() const noexcept
+    {
+        return mReusedBlocks;
+    }
+
+    [[nodiscard]] SizeType getNumAllocatedBlocks() const noexcept
     {
         return getMaxNumBlocks() - getNumFreeBlocks();
     }
 
-    [[nodiscard]] bool hasFreeBlocks(SizeType numRequired = 1) const
+    [[nodiscard]] bool hasFreeBlocks(SizeType numRequired = 1) const noexcept
     {
         return getNumFreeBlocks() >= numRequired;
     }
 
-    [[nodiscard]] bool schedulingHasFreeBlocks(SizeType numRequired = 1) const
+    [[nodiscard]] bool schedulingHasFreeBlocks(SizeType numRequired = 1) const noexcept
     {
         return mSchedulingNumFreeBlocks >= numRequired;
     }
 
-    [[nodiscard]] SizeType getMaxNumBlocks() const
+    [[nodiscard]] SizeType getMaxNumBlocks() const noexcept
     {
         return static_cast<SizeType>(mAllBlocksByIdx.size());
     }
 
-    [[nodiscard]] SizeType getTokensPerBlock() const
+    [[nodiscard]] SizeType getTokensPerBlock() const noexcept
     {
         return mTokensPerBlock;
     }
@@ -326,7 +349,7 @@ private:
     //! \param seqSlotIdx Batch slot of sequence to which blocks are assigned.
     //! \return Number of matched tokens from loaded blocks.
     SizeType loadOrAllocateBlocks(
-        std::list<VecTokens> blockedTokens, GenerationRequest& sequence, SizeType beamIdx, SizeType seqSlotIdx);
+        std::list<VecTokens> const& blockedTokens, GenerationRequest& sequence, SizeType beamIdx, SizeType seqSlotIdx);
 
     //! \brief Find block least likely to be reused, free it if necessary and return.
     [[nodiscard]] BlockPtr getFreeBlock();
@@ -362,9 +385,9 @@ public:
     using CudaStreamPtr = std::shared_ptr<runtime::CudaStream>;
 
     KVCacheManager(SizeType numLayers, SizeType numKvHeads, SizeType sizePerHead, SizeType tokensPerBlock,
-        SizeType maxNumBlocks, SizeType maxNumSequences, SizeType maxBeamWidth, SizeType maxBlocksPerSeq,
-        SizeType maxAttentionWindow, SizeType sinkTokenLength, bool useOneMoreBlock, nvinfer1::DataType dtype,
-        CudaStreamPtr stream, bool enableBlockReuse = false, bool useUvm = false);
+        SizeType maxNumBlocks, SizeType maxNumSequences, SizeType maxBeamWidth, SizeType maxAttentionWindow,
+        SizeType sinkTokenLength, bool useOneMoreBlock, nvinfer1::DataType dtype, CudaStreamPtr stream,
+        bool enableBlockReuse = false, bool useUvm = false);
 
     void startScheduling();
 
@@ -405,6 +428,11 @@ public:
         return mBlockSize;
     }
 
+    [[nodiscard]] SizeType getMaxBlocksPerSeq() const
+    {
+        return mMaxBlocksPerSeq;
+    }
+
     [[nodiscard]] BlockManager const& getBlockManager() const
     {
         return mBlockManager;
@@ -414,13 +442,13 @@ public:
     /// iterations
     /// @param req The request for which we need to calculate the number of needed KV cache blocks
     /// @return  The number of blocks
-    SizeType getNeededBlocksOneStep(LlmRequest const& req, bool twoStepsLookAhead) const;
+    [[nodiscard]] SizeType getNeededBlocksOneStep(LlmRequest const& req, bool twoStepsLookAhead) const;
 
     /// @brief  Function that computes the number of KV cache blocks needed to advance a request to completion (i.e. for
     /// maxNewTokens)
     /// @param req The request for which we need to calculate the number of needed KV cache blocks
     /// @return  The number of blocks
-    SizeType getNeededBlocksToCompletion(LlmRequest const& req) const;
+    [[nodiscard]] SizeType getNeededBlocksToCompletion(LlmRequest const& req) const;
 
     [[nodiscard]] std::vector<runtime::ITensor::SharedPtr> const& getMemoryPools() const
     {
@@ -458,7 +486,7 @@ public:
             * modelConfig.getSizePerHead();
     }
 
-    [[nodiscard]] static SizeType getMaxNumTokens(KvCacheConfig const& config, nvinfer1::DataType dtype,
+    [[nodiscard]] static SizeType calculateMaxNumBlocks(KvCacheConfig const& config, nvinfer1::DataType dtype,
         tensorrt_llm::runtime::GptModelConfig const& modelConfig, tensorrt_llm::runtime::WorldConfig const& worldConfig,
         runtime::BufferManager const& bufferManager);
 
@@ -473,11 +501,15 @@ public:
         return mEnableBlockReuse;
     }
 
+    void removeToken(SizeType seqSlotIdx);
+    void rewindKVCache(SizeType seqSlotIdx, SizeType rewindLengths);
+
 private:
     void resetBlockPointers(SizeType seqSlotIdx, SizeType beamWidth);
     void cacheBlockPointers(GenerationRequest const& seq, SizeType seqSlotIdx);
     void cacheNewBlockPointers(GenerationRequest const& seq, SizeType seqSlotIdx);
-    void updateNewBlockPointer(const GenerationRequest& seq, SizeType seqSlotIdx, SizeType blockIdx);
+    void updateNewBlockPointer(GenerationRequest const& seq, SizeType seqSlotIdx, SizeType blockIdx);
+    void updateToken(SizeType seqSlotIdx, bool addToken);
 
 private:
     // Number of elements per one blocks
@@ -491,10 +523,8 @@ private:
     // Maximum kv cache length per sequence
     // Enable cyclic kv cache when it exceeds
     SizeType mMaxAttentionWindow;
-    // Sink token length in the kv cache per sequence
-    SizeType mSinkTokenLength;
-    // Bubble token length
-    SizeType mBubbleLength;
+    // Number of tokens to fill up the sink tokens to a full block size
+    SizeType mSinkBubbleLength;
     // Maximum token length (including bubble)
     SizeType mMaxTokenNum;
     // Number of tokens in the sink blocks

@@ -39,6 +39,11 @@ public:
         kMLP_H_TO_4H = 5,
         kMLP_4H_TO_H = 6,
         kMLP_GATE = 7,
+        kCROSS_ATTN_QKV = 8,
+        kCROSS_ATTN_Q = 9,
+        kCROSS_ATTN_K = 10,
+        kCROSS_ATTN_V = 11,
+        kCROSS_ATTN_DENSE = 12,
     };
 
     explicit constexpr LoraModule(ModuleType const& t, SizeType inDim, SizeType outDim, bool inDimFirst,
@@ -64,6 +69,67 @@ public:
     [[nodiscard]] SizeType constexpr flattenedInOutSize(SizeType adapterSize) const noexcept
     {
         return adapterSize * (mInDim + mOutDim);
+    }
+
+    [[nodiscard]] SizeType constexpr inSize(SizeType adapterSize) const noexcept
+    {
+        return adapterSize * mInDim;
+    }
+
+    [[nodiscard]] SizeType constexpr outSize(SizeType adapterSize) const noexcept
+    {
+        return adapterSize * mOutDim;
+    }
+
+    [[nodiscard]] SizeType constexpr localInSize(SizeType adapterSize, SizeType tpSize) const noexcept
+    {
+        return localInAdapterSize(adapterSize, tpSize) * localInDim(tpSize);
+    }
+
+    [[nodiscard]] SizeType constexpr localOutSize(SizeType adapterSize, SizeType tpSize) const noexcept
+    {
+        return localOutAdapterSize(adapterSize, tpSize) * localOutDim(tpSize);
+    }
+
+    [[nodiscard]] SizeType constexpr localInDim(SizeType tpSize) const noexcept
+    {
+        if (inTpSplitDim() == 1)
+        {
+            return inDim() / tpSize;
+        }
+        return inDim();
+    }
+
+    [[nodiscard]] SizeType constexpr localOutDim(SizeType tpSize) const noexcept
+    {
+        if (outTpSplitDim() == 0)
+        {
+            return outDim() / tpSize;
+        }
+        return outDim();
+    }
+
+    [[nodiscard]] SizeType constexpr localInAdapterSize(SizeType adapterSize, SizeType tpSize) const noexcept
+    {
+        if (inTpSplitDim() == 0)
+        {
+            return adapterSize / tpSize;
+        }
+        return adapterSize;
+    }
+
+    [[nodiscard]] SizeType constexpr localOutAdapterSize(SizeType adapterSize, SizeType tpSize) const noexcept
+    {
+        if (outTpSplitDim() == 1)
+        {
+            return adapterSize / tpSize;
+        }
+        return adapterSize;
+    }
+
+    [[nodiscard]] SizeType constexpr localInOutSize(SizeType adapterSize, SizeType tpSize) const noexcept
+    {
+        return localInSize(adapterSize, tpSize) + localOutSize(adapterSize, tpSize);
     }
 
     [[nodiscard]] SizeType constexpr value() const noexcept
@@ -128,6 +194,16 @@ public:
             return ModuleType::kMLP_4H_TO_H;
         else if (name == "mlp_gate")
             return ModuleType::kMLP_GATE;
+        else if (name == "cross_attn_qkv")
+            return ModuleType::kCROSS_ATTN_QKV;
+        else if (name == "cross_attn_q")
+            return ModuleType::kCROSS_ATTN_Q;
+        else if (name == "cross_attn_k")
+            return ModuleType::kCROSS_ATTN_K;
+        else if (name == "cross_attn_v")
+            return ModuleType::kCROSS_ATTN_V;
+        else if (name == "cross_attn_dense")
+            return ModuleType::kCROSS_ATTN_DENSE;
         else
             return ModuleType::kINVALID;
     }
@@ -144,6 +220,11 @@ public:
         case ModuleType::kMLP_H_TO_4H: return "mlp_h_to_4h";
         case ModuleType::kMLP_4H_TO_H: return "mlp_4h_to_h";
         case ModuleType::kMLP_GATE: return "mlp_gate";
+        case ModuleType::kCROSS_ATTN_QKV: return "cross_attn_qkv";
+        case ModuleType::kCROSS_ATTN_Q: return "cross_attn_q";
+        case ModuleType::kCROSS_ATTN_K: return "cross_attn_k";
+        case ModuleType::kCROSS_ATTN_V: return "cross_attn_v";
+        case ModuleType::kCROSS_ATTN_DENSE: return "cross_attn_dense";
         case ModuleType::kINVALID: return "INVALID";
         }
         return "INVALID";
