@@ -22,7 +22,6 @@ std::shared_ptr<InstanceConfig> InstanceConfig::from_params(const InstanceParams
         std::nullopt,
         std::nullopt,
         instanceParams.cacheParams.freeGpuMemoryFraction,
-        false
     };
     texec::ExecutorConfig executorConfig {
         instanceParams.sampleParms.maxBeamWidth,
@@ -35,12 +34,16 @@ std::shared_ptr<InstanceConfig> InstanceConfig::from_params(const InstanceParams
     texec::SamplingConfig samplingConfig {
         instanceParams.sampleParms.maxBeamWidth,
         50,
+<<<<<<< HEAD
         1.0,
         std::nullopt,
         std::nullopt,
         std::nullopt,
         std::nullopt,
         1.0
+=======
+        instanceParams.sampleParms.topP
+>>>>>>> dev/trt-llm
     };
     texec::OutputConfig outputConfig {
         false,

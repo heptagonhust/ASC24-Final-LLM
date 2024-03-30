@@ -25,6 +25,7 @@
 namespace tensorrt_llm::batch_manager::kv_cache_manager
 {
 
+//! @brief Encapsulates parameters to configure paged KV cache.
 class KvCacheConfig
 {
 public:
@@ -46,8 +47,15 @@ public:
     explicit KvCacheConfig(executor::KvCacheConfig const& kvCacheConfig)
         : KvCacheConfig(kvCacheConfig.getMaxTokens(), kvCacheConfig.getMaxAttentionWindow(),
             kvCacheConfig.getSinkTokenLength(), kvCacheConfig.getFreeGpuMemoryFraction(),
-            kvCacheConfig.getEnableBlockReuse(), kvCacheConfig.getUseUvm())
+            kvCacheConfig.getEnableBlockReuse(), false)
     {
+    }
+
+    bool operator==(KvCacheConfig const& other) const
+    {
+        return maxTokens == other.maxTokens && maxAttentionWindow == other.maxAttentionWindow
+            && sinkTokenLength == other.sinkTokenLength && freeGpuMemoryFraction == other.freeGpuMemoryFraction
+            && enableBlockReuse == other.enableBlockReuse && useUvm == other.useUvm;
     }
 
     std::optional<SizeType> maxTokens;

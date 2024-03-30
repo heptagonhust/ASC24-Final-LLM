@@ -21,12 +21,13 @@ void Recorder::recordStart(SizeType inputLength, SizeType maxNewTokens, uint64_t
     mRequestBenchInfos[requestId] = BenchInfo(inputLength, maxNewTokens, start);
 }
 
-void Recorder::recordEnd(uint64_t requestId)
+void Recorder::recordEnd(uint64_t requestId, texec::Result &result)
 {
     mRequestBenchInfos[requestId].end = std::chrono::steady_clock::now();
     mRequestBenchInfos[requestId].latency = std::chrono::duration<float, std::milli>(
         mRequestBenchInfos[requestId].end - mRequestBenchInfos[requestId].start)
                                                 .count();
+    mRequestBenchInfos[requestId].outputLength = result.outputTokenIds[0].size();
 }
 
 void Recorder::calculateMetrics() {

@@ -62,7 +62,7 @@ void ExecutorServer::waitForResponses(std::optional<SizeType> numRequests, bool 
                     numFinished++;
                     if (!warmup)
                     {
-                        recorder_->recordEnd(reqId);
+                        recorder_->recordEnd(reqId, result);
                         results_.emplace(reqId, std::move(result));
                     }
                 }
