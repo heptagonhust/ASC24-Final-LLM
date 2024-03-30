@@ -27,7 +27,7 @@ void Recorder::recordEnd(uint64_t requestId, texec::Result &result)
     mRequestBenchInfos[requestId].latency = std::chrono::duration<float, std::milli>(
         mRequestBenchInfos[requestId].end - mRequestBenchInfos[requestId].start)
                                                 .count();
-    mRequestBenchInfos[requestId].outputLength = result.outputTokenIds[0].size();
+    mRequestBenchInfos[requestId].outputLength = result.outputTokenIds[0].size() - mRequestBenchInfos[requestId].inputLength;
 }
 
 void Recorder::calculateMetrics() {
