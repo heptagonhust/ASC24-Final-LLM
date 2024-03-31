@@ -68,6 +68,7 @@ struct InstanceParams
     struct RpcParams {
         std::string rpcAddress;
         int rpcPort;
+        SizeType rpcNseqsThreshold;
     };
     
     ModelParams modelParams;

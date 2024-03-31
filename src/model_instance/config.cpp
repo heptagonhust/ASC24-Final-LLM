@@ -22,7 +22,6 @@ std::shared_ptr<InstanceConfig> InstanceConfig::from_params(const InstanceParams
         std::nullopt,
         std::nullopt,
         instanceParams.cacheParams.freeGpuMemoryFraction,
-        false
     };
     texec::ExecutorConfig executorConfig {
         instanceParams.sampleParms.maxBeamWidth,

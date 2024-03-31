@@ -40,7 +40,7 @@ void Instance::run()
     while (1) {
         auto reqs = getRequests(seqs);
         executorServer_->enqueue(std::move(reqs));
-        executorServer_->waitForGetReqs(300);
+        executorServer_->waitForGetReqs(instanceParams_.rpcParams.rpcNseqsThreshold);
         seqs = client.call("getseqs").as<Sequences>();
         if(seqs.size() == 0)
             break;
