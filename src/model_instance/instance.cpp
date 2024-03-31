@@ -36,7 +36,9 @@ void Instance::run()
     recorder_->initialize();
 
     // execute
+    std::vector<int32_t> order;
     Sequences seqs = client.call("getseqs").as<Sequences>();
+    order.push_back(seqs.at(0).order_id);
     while (1) {
         auto reqs = getRequests(seqs);
         executorServer_->enqueue(std::move(reqs));
@@ -44,6 +46,7 @@ void Instance::run()
         seqs = client.call("getseqs").as<Sequences>();
         if(seqs.size() == 0)
             break;
+        order.push_back(seqs.at(0).order_id);
     }
     executorServer_->waitForResponses();
     recorder_->finalize();
@@ -58,7 +61,7 @@ void Instance::run()
     for (auto& [reqId, result] : results) {
         outIds.push_back(result.outputTokenIds[0]);
     }
-    client.call("outseqs_back",outIds);
+    client.call("outseqs_back",outIds,order);
 
 }
 

@@ -1,3 +1,4 @@
+#include <cmath>
 #include <cxxopts.hpp>
 #include <filesystem>
 #include <iostream>
@@ -18,6 +19,7 @@
 
 namespace fs = std::filesystem;
 using SeqQ = std::queue<Sequence>;
+using SeqV = std::vector<Sequence>;
 using outputTokenIds = std::vector<int32_t>; 
 using ResultV = std::vector<outputTokenIds>;
 
@@ -166,12 +168,20 @@ int main(int argc, char* argv[]) {
     std::string addr = result["server_addr"].as<std::string>();
     int port = result["server_port"].as<int>();
     int batch_size = result["batch_size"].as<int>();
+    SeqV Queue_input_vector ;
     SeqQ Queue_input = readDatasetFromJson(datasetPath,tokenizerPath);
-    ResultV Vector_output;
     int num_seqs = Queue_input.size();
-
+    ResultV Vector_output;
+    for(int n = 0;n<num_seqs;n++){
+        outputTokenIds p = {};
+        Vector_output.push_back(p);
+    }
+    int order = 0;
     Recorder recorder;
     rpc::server srv(addr, port);
+    int back_times = 0;
+
+
     srv.bind("getseqs",[&](){
         if (Queue_input.size() == num_seqs) {
             recorder.initialize();
@@ -186,21 +196,23 @@ int main(int argc, char* argv[]) {
                 else{
                     Sequence seq = Queue_input.front();
                     Queue_input.pop();
-                    seqs.emplace_back(Sequence{seq.inputIds, seq.outputLen});
+                    seqs.emplace_back(Sequence{seq.inputIds, seq.outputLen,order});
+                    order++;
                 }
             }
         }
         return seqs;
     });
 
-    srv.bind("outseqs_back",[&](ResultV outIds){
-        
-
-        for(int i = 0; i < outIds.size(); i++){
-            recorder.record(outIds[i]);
-            Vector_output.push_back(outIds[i]);
+    srv.bind("outseqs_back",[&](ResultV outIds,std::vector<int32_t> order){
+        for(int i = 0;i<order.size();i++){
+            for(int j = 0 ;j < batch_size && (i * batch_size + j) < outIds.size() ;j++){
+                recorder.record(outIds[i * batch_size + j]);
+                Vector_output.at(order.at(i)+j) = outIds[i * batch_size + j];
+                back_times++;
+            }
         }
-        if (Vector_output.size() == num_seqs) {
+        if (back_times == num_seqs) {
             recorder.finalize();
             recorder.calculateMetrics();
             recorder.report();
