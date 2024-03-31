@@ -2,3 +2,5 @@ __pycache__
 build/
 libs/
 .cache
+outputs/
+output.json

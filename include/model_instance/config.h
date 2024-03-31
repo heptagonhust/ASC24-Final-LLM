@@ -34,7 +34,6 @@ struct InstanceParams
     };
 
     struct ScheduleParams {
-        tb::TrtGptModelType BatchingType;
         tbb::SchedulerPolicy schedulerPolicy;
     };
 
@@ -50,14 +49,7 @@ struct InstanceParams
         int warm_up_iterations;
     };
 
-    struct RequestsParams {
-        fs::path datasetPath;
-        fs::path tokenzierPath;
-        int maxNumSequences;
-    };
-
     struct OutputParams {
-        fs::path outputPath;
         bool returnContextLogits;
         bool returnGenerationLogits;
     };
@@ -72,6 +64,13 @@ struct InstanceParams
     struct LoggerParams {
         bool logIterationData;
         std::string opCsvFile;
+        bool showResults;
+    };
+
+    struct RpcParams {
+        std::string rpcAddress;
+        int rpcPort;
+        SizeType rpcNseqsThreshold;
     };
     
     ModelParams modelParams;
@@ -79,10 +78,11 @@ struct InstanceParams
     ScheduleParams scheduleParams;
     CacheParams cacheParams;
     ServerParams serverParams;
-    RequestsParams reqParams;
     OutputParams outputParams;
     SampleParams sampleParms;
     LoggerParams loggerParams;
+    RpcParams rpcParams;
+    int rank;
 };
 
 class InstanceConfig {
@@ -96,9 +96,6 @@ public:
         texec::OutputConfig outputConfig,
         InstanceParams instanceParams)
         : engineDir_(instanceParams.engineParams.engine_dir)
-        , datasetPath_(instanceParams.reqParams.datasetPath)
-        , tokenizerPath_(instanceParams.reqParams.tokenzierPath)
-        , outputPath_(instanceParams.outputParams.outputPath)
         , worldConfig_(std::move(worldConfig))
         , executorConfig_(std::move(executorConfig)) 
         , samplingConfig_(std::move(samplingConfig))
@@ -116,9 +113,6 @@ public:
     [[nodiscard]] std::shared_ptr<Recorder> getRecorder() const;
 
     [[nodiscard]] const auto& getEngineDir() const { return engineDir_; }
-    [[nodiscard]] const auto& getDatasetPath() const { return datasetPath_; }
-    [[nodiscard]] const auto& getTokenizerPath() const { return tokenizerPath_; }
-    [[nodiscard]] const auto& getOutputPath() const { return outputPath_; }
 
     [[nodiscard]] const auto& getWorldConfig() const { return worldConfig_; }
     [[nodiscard]] const auto& getExecutorConfig() const { return executorConfig_; }
@@ -128,10 +122,6 @@ public:
 
 private:
     fs::path engineDir_;
-    fs::path datasetPath_;
-    fs::path tokenizerPath_;
-    fs::path outputPath_;
-
     WorldConfig worldConfig_;
     texec::ExecutorConfig executorConfig_;
     texec::SamplingConfig samplingConfig_;
