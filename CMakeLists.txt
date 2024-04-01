@@ -65,7 +65,8 @@ set(SERVER_SHARED_TARGETS
 
 
 set(SERVER_INSTANCE_NAME server)
-add_executable(${SERVER_INSTANCE_NAME} "${PROJECT_SOURCE_DIR}/src/server/server.cpp")
+FILE(GLOB_RECURSE SOURCE_SERVER CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/src/cmmlu/*.cpp")
+add_executable(${SERVER_INSTANCE_NAME} ${SOURCE_SERVER} "${PROJECT_SOURCE_DIR}/src/server/server.cpp")
 add_definitions(-DENABLE_BF16)
 add_definitions(-DENABLE_FP8)
 target_compile_options(${SERVER_INSTANCE_NAME} PRIVATE -Wno-deprecated-declarations)
@@ -75,9 +76,9 @@ target_link_libraries(${SERVER_INSTANCE_NAME} PUBLIC
                                         )
 
 set(CLIENT_INSTANCE_NAME client)
-FILE(GLOB_RECURSE SOURCE CONFIGURE_DEPENDS 
+FILE(GLOB_RECURSE SOURCE_CLIENT CONFIGURE_DEPENDS 
     "${PROJECT_SOURCE_DIR}/src/model_instance/*.cpp")
-add_executable(${CLIENT_INSTANCE_NAME} ${SOURCE} "${PROJECT_SOURCE_DIR}/src/client/client.cpp")
+add_executable(${CLIENT_INSTANCE_NAME} ${SOURCE_CLIENT} "${PROJECT_SOURCE_DIR}/src/client/client.cpp")
 add_definitions(-DENABLE_BF16)
 add_definitions(-DENABLE_FP8)
 target_compile_options(${CLIENT_INSTANCE_NAME} PRIVATE -Wno-deprecated-declarations)

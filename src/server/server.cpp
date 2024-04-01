@@ -1,4 +1,5 @@
 #include <cmath>
+#include <cstdint>
 #include <cxxopts.hpp>
 #include <filesystem>
 #include <iostream>
@@ -13,15 +14,11 @@
 #include "rpc/this_server.h"
 #include "rpc/msgpack.hpp"
 #include "tokenizers/tokenizers_cpp.h"
-
+#include "cmmlu/cmmlu.h"
 #include "sequences/sequences.h"
 
 
 namespace fs = std::filesystem;
-using SeqQ = std::queue<Sequence>;
-using SeqV = std::vector<Sequence>;
-using outputTokenIds = std::vector<int32_t>; 
-using ResultV = std::vector<outputTokenIds>;
 
 namespace 
 {
@@ -114,9 +111,9 @@ public:
         mEnd = std::chrono::steady_clock::now();
     }
 
-    void record(outputTokenIds& tokenIds) {
+    void record(int32_t output_tokenIds_size,int32_t prompt_tokenIds_size) {
         mNumSeqs += 1;
-        mNumTokens += tokenIds.size();
+        mNumTokens += output_tokenIds_size - prompt_tokenIds_size;
     }
 
     void calculateMetrics() {
@@ -141,6 +138,16 @@ private:
     float mSeqThroughput{};
     float mTokenThroughput{};
 }; // class Recorder
+
+template<typename T>
+std::vector<T> queueToVector(std::queue<T> q) {
+    std::vector<T> v;
+    while (!q.empty()) {
+        v.push_back(q.front());
+        q.pop();
+    }
+    return v;
+}
 
 } // namespace
 
@@ -168,8 +175,9 @@ int main(int argc, char* argv[]) {
     std::string addr = result["server_addr"].as<std::string>();
     int port = result["server_port"].as<int>();
     int batch_size = result["batch_size"].as<int>();
-    SeqV Queue_input_vector ;
-    SeqQ Queue_input = readDatasetFromJson(datasetPath,tokenizerPath);
+    SeqQ Queue_input = readDatasetFromCSV(datasetPath,tokenizerPath);
+    SeqQ tmp = Queue_input;
+    SeqV V_input = queueToVector(tmp);
     int num_seqs = Queue_input.size();
     ResultV Vector_output;
     for(int n = 0;n<num_seqs;n++){
@@ -180,7 +188,6 @@ int main(int argc, char* argv[]) {
     Recorder recorder;
     rpc::server srv(addr, port);
     int back_times = 0;
-
 
     srv.bind("getseqs",[&](){
         if (Queue_input.size() == num_seqs) {
@@ -204,10 +211,10 @@ int main(int argc, char* argv[]) {
         return seqs;
     });
 
-    srv.bind("outseqs_back",[&](ResultV outIds,std::vector<int32_t> order){
+    srv.bind("outseqs_back",[&](ResultV outIds,std::vector<int32_t> order){  
         for(int i = 0;i<order.size();i++){
-            for(int j = 0 ;j < batch_size && (i * batch_size + j) < outIds.size() ;j++){
-                recorder.record(outIds[i * batch_size + j]);
+            for(int j = 0 ;j < batch_size && ((order.at(i)+j) < num_seqs);j++){
+                recorder.record(outIds[i * batch_size + j].size(),V_input.at(order.at(i)+j).inputIds.size());
                 Vector_output.at(order.at(i)+j) = outIds[i * batch_size + j];
                 back_times++;
             }
@@ -216,7 +223,8 @@ int main(int argc, char* argv[]) {
             recorder.finalize();
             recorder.calculateMetrics();
             recorder.report();
-
+            float acc = output_acc(V_input,Vector_output,tokenizerPath);
+            std::cout<<"acc = "<< acc <<std::endl;
             writeResultsToJson(outputPath, tokenizerPath, Vector_output);
             rpc::this_server().stop();
         }
