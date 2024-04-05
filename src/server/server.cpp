@@ -159,15 +159,15 @@ int main(int argc, char* argv[]) {
         cxxopts::value<std::string>());
     options.add_options()("server_port", "Specify the port of the server.",
         cxxopts::value<int>());
-    options.add_options()("batch_size", "Specify the transmitted batch size of seqs in a single rpc request.",
-        cxxopts::value<int>()->default_value("200"));
+    // options.add_options()("batch_size", "Specify the transmitted batch size of seqs in a single rpc request.",
+    //     cxxopts::value<int>()->default_value("200"));
     auto result = options.parse(argc, argv);
     std::string datasetPath = result["dataset"].as<std::string>();
     std::string tokenizerPath = result["tokenizer"].as<std::string>();
     std::string outputPath = result["output"].as<std::string>();
     std::string addr = result["server_addr"].as<std::string>();
     int port = result["server_port"].as<int>();
-    int batch_size = result["batch_size"].as<int>();
+    // int batch_size = result["batch_size"].as<int>();
     SeqV Queue_input_vector ;
     SeqQ Queue_input = readDatasetFromJson(datasetPath,tokenizerPath);
     int num_seqs = Queue_input.size();
@@ -182,7 +182,7 @@ int main(int argc, char* argv[]) {
     int back_times = 0;
 
 
-    srv.bind("getseqs",[&](){
+    srv.bind("getseqs",[&](int32_t batch_size){
         if (Queue_input.size() == num_seqs) {
             recorder.initialize();
         }
@@ -204,7 +204,7 @@ int main(int argc, char* argv[]) {
         return seqs;
     });
 
-    srv.bind("outseqs_back",[&](ResultV outIds,std::vector<int32_t> order){
+    srv.bind("outseqs_back",[&](ResultV outIds,std::vector<int32_t> order,int32_t batch_size){
         for(int i = 0;i<order.size();i++){
             for(int j = 0 ;j < batch_size && (i * batch_size + j) < outIds.size() ;j++){
                 recorder.record(outIds[i * batch_size + j]);

@@ -37,13 +37,13 @@ void Instance::run()
 
     // execute
     std::vector<int32_t> order;
-    Sequences seqs = client.call("getseqs").as<Sequences>();
+    Sequences seqs = client.call("getseqs",instanceParams_.rpcParams.rpcNseqsBatchsize).as<Sequences>();
     order.push_back(seqs.at(0).order_id);
     while (1) {
         auto reqs = getRequests(seqs);
         executorServer_->enqueue(std::move(reqs));
         executorServer_->waitForGetReqs(instanceParams_.rpcParams.rpcNseqsThreshold);
-        seqs = client.call("getseqs").as<Sequences>();
+        seqs = client.call("getseqs",instanceParams_.rpcParams.rpcNseqsBatchsize).as<Sequences>();
         if(seqs.size() == 0)
             break;
         order.push_back(seqs.at(0).order_id);
