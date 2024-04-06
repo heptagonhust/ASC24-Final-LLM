@@ -61,7 +61,7 @@ void Instance::run()
     for (auto& [reqId, result] : results) {
         outIds.push_back(result.outputTokenIds[0]);
     }
-    client.call("outseqs_back",outIds,order);
+    client.call("outseqs_back",outIds,order,instanceParams_.rpcParams.rpcNseqsBatchsize);
 
 }
 
