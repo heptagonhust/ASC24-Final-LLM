@@ -71,7 +71,8 @@ int main(int argc, char* argv[])
     options.add_options()("rpc_port", "Specify the port of the server.", cxxopts::value<int>());
     options.add_options()("rpc_seqs_threshold", "Specify the threshold number of seqs that trigger the next rpc getseqs call", 
         cxxopts::value<int>()->default_value("300"));
-
+    options.add_options()("rpc_batch_size", "Specify the transmitted batch size of seqs in a single rpc request.",
+        cxxopts::value<int>()->default_value("500"));
     auto result = options.parse(argc, argv);
 
     InstanceParams instanceParams;
@@ -195,6 +196,7 @@ int main(int argc, char* argv[])
         instanceParams.rpcParams.rpcAddress = result["rpc_address"].as<std::string>();
         instanceParams.rpcParams.rpcPort = result["rpc_port"].as<int>();
         instanceParams.rpcParams.rpcNseqsThreshold = result["rpc_seqs_threshold"].as<int>();
+        instanceParams.rpcParams.rpcNseqsBatchsize = result["rpc_batch_size"].as<int>();
     }
 
     // Argument: Log level

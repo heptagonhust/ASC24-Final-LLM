@@ -1,3 +1,4 @@
+#include <cmath>
 #include <cxxopts.hpp>
 #include <filesystem>
 #include <iostream>
@@ -18,8 +19,9 @@
 
 namespace fs = std::filesystem;
 using SeqQ = std::queue<Sequence>;
+using SeqV = std::vector<Sequence>;
 using outputTokenIds = std::vector<int32_t>; 
-using ResultQ = std::queue<outputTokenIds>;
+using ResultV = std::vector<outputTokenIds>;
 
 namespace 
 {
@@ -78,17 +80,16 @@ SeqQ readDatasetFromJson(
 void writeResultsToJson(
     const std::filesystem::path& outputPath,
     const std::filesystem::path& tokenizerPath,
-    ResultQ Q
+    ResultV V
 ){
     auto blob = LoadBytesFromFile(tokenizerPath);
     auto tok = tokenizers::Tokenizer::FromBlobJSON(blob);
     
     nlohmann::json j;
-    int size = Q.size();
+    int size = V.size();
     for (int i = 0;i < size; i++)
     {
-        outputTokenIds output = Q.front();
-        Q.pop();
+        outputTokenIds output = V[i];
         std::string decoded_prompt = tok->Decode(output);
         j.push_back("reqId: " + std::to_string(i) + ", decode: \"" + decoded_prompt + "\"");
     }
@@ -158,22 +159,30 @@ int main(int argc, char* argv[]) {
         cxxopts::value<std::string>());
     options.add_options()("server_port", "Specify the port of the server.",
         cxxopts::value<int>());
-    options.add_options()("batch_size", "Specify the transmitted batch size of seqs in a single rpc request.",
-        cxxopts::value<int>()->default_value("200"));
+    // options.add_options()("batch_size", "Specify the transmitted batch size of seqs in a single rpc request.",
+    //     cxxopts::value<int>()->default_value("200"));
     auto result = options.parse(argc, argv);
     std::string datasetPath = result["dataset"].as<std::string>();
     std::string tokenizerPath = result["tokenizer"].as<std::string>();
     std::string outputPath = result["output"].as<std::string>();
     std::string addr = result["server_addr"].as<std::string>();
     int port = result["server_port"].as<int>();
-    int batch_size = result["batch_size"].as<int>();
+    // int batch_size = result["batch_size"].as<int>();
+    SeqV Queue_input_vector ;
     SeqQ Queue_input = readDatasetFromJson(datasetPath,tokenizerPath);
-    ResultQ Queue_output;
     int num_seqs = Queue_input.size();
-
+    ResultV Vector_output;
+    for(int n = 0;n<num_seqs;n++){
+        outputTokenIds p = {};
+        Vector_output.push_back(p);
+    }
+    int order = 0;
     Recorder recorder;
     rpc::server srv(addr, port);
-    srv.bind("getseqs",[&](){
+    int back_times = 0;
+
+
+    srv.bind("getseqs",[&](int32_t batch_size){
         if (Queue_input.size() == num_seqs) {
             recorder.initialize();
         }
@@ -187,22 +196,28 @@ int main(int argc, char* argv[]) {
                 else{
                     Sequence seq = Queue_input.front();
                     Queue_input.pop();
-                    seqs.emplace_back(Sequence{seq.inputIds, seq.outputLen});
+                    seqs.emplace_back(Sequence{seq.inputIds, seq.outputLen,order});
+                    order++;
                 }
             }
         }
         return seqs;
     });
 
-    srv.bind("outseqs_back",[&](outputTokenIds tokenIds){
-        recorder.record(tokenIds);
-        Queue_output.push(tokenIds);
-        if (Queue_output.size() == num_seqs) {
+    srv.bind("outseqs_back",[&](ResultV outIds,std::vector<int32_t> order,int32_t batch_size){
+        for(int i = 0;i<order.size();i++){
+            for(int j = 0 ;j < batch_size && (i * batch_size + j) < outIds.size() ;j++){
+                recorder.record(outIds[i * batch_size + j]);
+                Vector_output.at(order.at(i)+j) = outIds[i * batch_size + j];
+                back_times++;
+            }
+        }
+        if (back_times == num_seqs) {
             recorder.finalize();
             recorder.calculateMetrics();
             recorder.report();
 
-            writeResultsToJson(outputPath, tokenizerPath, Queue_output);
+            writeResultsToJson(outputPath, tokenizerPath, Vector_output);
             rpc::this_server().stop();
         }
     });

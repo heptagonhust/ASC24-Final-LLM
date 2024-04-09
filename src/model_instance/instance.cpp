@@ -36,14 +36,17 @@ void Instance::run()
     recorder_->initialize();
 
     // execute
-    Sequences seqs = client.call("getseqs").as<Sequences>();
+    std::vector<int32_t> order;
+    Sequences seqs = client.call("getseqs",instanceParams_.rpcParams.rpcNseqsBatchsize).as<Sequences>();
+    order.push_back(seqs.at(0).order_id);
     while (1) {
         auto reqs = getRequests(seqs);
         executorServer_->enqueue(std::move(reqs));
         executorServer_->waitForGetReqs(instanceParams_.rpcParams.rpcNseqsThreshold);
-        seqs = client.call("getseqs").as<Sequences>();
+        seqs = client.call("getseqs",instanceParams_.rpcParams.rpcNseqsBatchsize).as<Sequences>();
         if(seqs.size() == 0)
             break;
+        order.push_back(seqs.at(0).order_id);
     }
     executorServer_->waitForResponses();
     recorder_->finalize();
@@ -54,9 +57,12 @@ void Instance::run()
     }
 
     auto results = executorServer_->getResults();
+    std::vector<std::vector<int32_t>> outIds;
     for (auto& [reqId, result] : results) {
-        client.call("outseqs_back",result.outputTokenIds[0]);
+        outIds.push_back(result.outputTokenIds[0]);
     }
+    client.call("outseqs_back",outIds,order,instanceParams_.rpcParams.rpcNseqsBatchsize);
+
 }
 
 std::vector<texec::Request> Instance::getRequests(Sequences seqs) const {
