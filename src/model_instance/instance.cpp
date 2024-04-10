@@ -61,9 +61,18 @@ void Instance::run()
     std::vector<std::vector<float>> whole_logits;
     for (auto& [reqId, result] : results) {
         outIds.push_back(result.outputTokenIds[0]);
-        auto data = result.generationLogits->getData();
-        auto logits_size = result.generationLogits->getSize();
-        auto logits_shape = result.generationLogits->getShape();
+
+        // assert(result.generationLogits.has_value() == 1);
+        if (result.generationLogits.has_value() == 0) {
+            continue;
+        }
+        // std::cout << "result.generationLogits.has_value(): " << result.generationLogits.has_value() << std::endl;
+
+        auto generationLogits = result.generationLogits.value();
+        auto data = generationLogits.getData();
+        auto logits_size = generationLogits.getSize();
+        auto logits_shape = generationLogits.getShape();
+        assert(data != nullptr);
         std::vector<float> logits; 
         for(int i = 0;i < logits_shape[2];i++){
             // ! may not be correct
