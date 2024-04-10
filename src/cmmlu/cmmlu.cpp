@@ -71,7 +71,7 @@ std::unordered_map<std::string, std::string> name_en2zh = {
     {"world_religions", "世界宗教"}
 };
 
-std::string LoadBytesFromFile(const std::filesystem::path& path) {
+inline static std::string LoadBytesFromFile(const std::filesystem::path& path) {
     std::ifstream fs(path, std::ios::in | std::ios::binary);
     if (fs.fail()) {
       std::cerr << "Cannot open tokenzier: " << path.string() << std::endl;

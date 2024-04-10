@@ -27,7 +27,7 @@ namespace fs = std::filesystem;
 namespace 
 {
 
-std::string LoadBytesFromFile(const fs::path& path) {
+inline static std::string LoadBytesFromFile(const fs::path& path) {
     std::ifstream fs(path, std::ios::in | std::ios::binary);
     if (fs.fail()) {
       std::cerr << "Cannot open tokenzier: " << path.string() << std::endl;

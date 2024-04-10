@@ -11,7 +11,7 @@
 #include <vector>
 
 
-std::string LoadBytesFromFile(const std::filesystem::path& path) {
+inline static std::string LoadBytesFromFile(const std::filesystem::path& path) {
     std::ifstream fs(path, std::ios::in | std::ios::binary);
     if (fs.fail()) {
       std::cerr << "Cannot open tokenzier: " << path.string() << std::endl;
@@ -87,6 +87,32 @@ void getFormattedQuestionIntoSeq(
     prompt += realQuestion;
 
     seq.inputIds = tknizer->Encode(prompt);
+}
+
+std::string MMLU::format_question(const std::string &question,
+                            const std::vector<std::string> &options,
+                            std::string answer, bool ex = false) {
+  std::string clabels = "ABCD";
+  std::string text = "问题:\n";
+  text += question + "\n\n选项:\n";
+  // for (size_t i = 0; i < options.size(); ++i) {
+  //     text += "A " + ": " + options[i] + "\n";
+  // }
+  text += "A: ";
+  text += options[0] + "\n";
+  text += "B: ";
+  text += options[1] + "\n";
+  text += "C: ";
+  text += options[2] + "\n";
+  text += "D: ";
+  text += options[3] + "\n";
+  text += "\n答案: ";
+  if (ex) {
+    text += answer[0];
+    text += "\n";
+  }
+  // std::cout<<text;
+  return text;
 }
 
 
