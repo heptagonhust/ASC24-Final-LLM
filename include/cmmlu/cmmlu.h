@@ -13,17 +13,6 @@
 #include <time.h>
 #include <vector>
 
-// std::string format_question(const std::string& question, const
-// std::vector<std::string>& options, std::string answer, bool ex);
-
-// SeqQ readDatasetFromCSV(const std::filesystem::path& datasetPath, const
-// std::filesystem::path& tokenizerPath);
-
-// SeqQ readDatasetFromCSVfolder(const std::filesystem::path& folderPath, const
-// std::filesystem::path& tokenizerPath);
-
-// float output_acc(SeqV V_input,ResultV Vector_output,const
-// std::filesystem::path& tokenizerPath);
 
 class CMMLU : public MMLU_Base {
 public:
@@ -34,8 +23,7 @@ public:
   SeqQ readDatasetFromCSV(const std::filesystem::path &datasetPath,
                           const std::filesystem::path &tokenizerPath) override;
 
-  SeqQ
-  readDatasetFromCSVfolder(const std::filesystem::path &folderPath,
+  SeqQ readDatasetFromCSVfolder(const std::filesystem::path &folderPath,
                            const std::filesystem::path &tokenizerPath) override;
 
   float output_acc(

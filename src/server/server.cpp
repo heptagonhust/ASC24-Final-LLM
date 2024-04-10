@@ -3,11 +3,14 @@
 #include <cxxopts.hpp>
 #include <filesystem>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <vector>
 #include <queue>
 #include <fstream>
 #include <chrono>
+#include <cassert>
+#include <variant>
 #include <nlohmann/json.hpp>
 
 #include "rpc/server.h"
@@ -15,6 +18,7 @@
 #include "rpc/msgpack.hpp"
 #include "tokenizers/tokenizers_cpp.h"
 #include "cmmlu/cmmlu.h"
+#include "mmlu/mmlu.h"
 #include "sequences/sequences.h"
 
 
@@ -166,16 +170,27 @@ int main(int argc, char* argv[]) {
         cxxopts::value<std::string>());
     options.add_options()("server_port", "Specify the port of the server.",
         cxxopts::value<int>());
-    // options.add_options()("batch_size", "Specify the transmitted batch size of seqs in a single rpc request.",
-    //     cxxopts::value<int>()->default_value("200"));
+    options.add_options()("test_choice", "test cmmlu or mmlu",
+        cxxopts::value<std::string>());
+
     auto result = options.parse(argc, argv);
     std::string datasetPath = result["dataset"].as<std::string>();
     std::string tokenizerPath = result["tokenizer"].as<std::string>();
     std::string outputPath = result["output"].as<std::string>();
     std::string addr = result["server_addr"].as<std::string>();
     int port = result["server_port"].as<int>();
+    std::string test_choice = result["test_choice"].as<std::string>();
     
-    SeqQ Queue_input = readDatasetFromCSV(datasetPath,tokenizerPath);
+    std::unique_ptr<MMLU_Base> MMLU_test;
+    if(test_choice=="cmmlu"){
+        MMLU_test = std::make_unique<CMMLU>();
+    }
+    else if(test_choice=="mmlu"){
+        MMLU_test = std::make_unique<MMLU>();
+    }
+
+  
+    SeqQ Queue_input = MMLU_test->readDatasetFromCSV(datasetPath,tokenizerPath);
     SeqQ tmp = Queue_input;
     SeqV V_input = queueToVector(tmp);
     int num_seqs = Queue_input.size();
@@ -211,16 +226,29 @@ int main(int argc, char* argv[]) {
         }
         return seqs;
     });
-    srv.bind("logits_back",[&](std::vector<std::vector<float>> whole_logits,std::vector<int32_t> order,int32_t batch_size){
-         for(int i = 0;i<order.size();i++){
+    srv.bind("outseqs_back",[&](ResultV outIds,std::vector<std::vector<float>> whole_logits,std::vector<int32_t> order,int batch_size){  
+        for(int i = 0;i<order.size();i++){
             for(int j = 0 ;j < batch_size && ((order.at(i)+j) < num_seqs);j++){
-                
-                
+                recorder.record(outIds[i * batch_size + j].size(),V_input.at(order.at(i)+j).inputIds.size());
+                Vector_output.at(order.at(i)+j) = outIds[i * batch_size + j];
                 back_times++;
             }
         }
         if (back_times == num_seqs) {
-            std::cout<<"over";
+            recorder.finalize();
+            recorder.calculateMetrics();
+            recorder.report();
+            float acc;
+            if(test_choice=="cmmlu"){
+                std::variant<ResultV, std::vector<std::vector<float>>> output_Ids_Logits(std::in_place_type<ResultV>,outIds);
+                acc = MMLU_test->output_acc(V_input,output_Ids_Logits,tokenizerPath);
+            }
+            else if(test_choice=="mmlu"){
+                std::variant<ResultV, std::vector<std::vector<float>>> output_Ids_Logits(std::in_place_type<std::vector<std::vector<float>>>,whole_logits);
+                acc = MMLU_test->output_acc(V_input,output_Ids_Logits,tokenizerPath);
+            }
+            std::cout<<"acc = "<< acc <<std::endl;
+            writeResultsToJson(outputPath, tokenizerPath, Vector_output);
             rpc::this_server().stop();
         }
     });

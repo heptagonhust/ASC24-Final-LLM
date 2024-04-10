@@ -1,3 +1,4 @@
+#pragma once
 #include "sequences/sequences.h"
 #include "tokenizers/tokenizers_cpp.h"
 #include <cassert>
