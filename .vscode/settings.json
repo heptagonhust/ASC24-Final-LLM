@@ -77,5 +77,5 @@
         "valarray": "cpp",
         "filesystem": "cpp",
         "future": "cpp"
-    }
+    },
 }

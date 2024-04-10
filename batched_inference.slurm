@@ -12,8 +12,8 @@
 export headnode=`hostname -s`
 export headaddr="$(ip addr | awk '/^[0-9]+: / {}; /inet.*global/ {print gensub(/(.*)\/(.*)/, "\\1", "g",$2)}' | grep "192.168.250.*")"
 export port=12345
-export A100_engine_dir=$1
-export H800_engine_dir=$2
+# export A100_engine_dir=$1
+# export H800_engine_dir=$2
 export NVIDIA_VISIBLE_DEVICES=all
 
 echo "head node: $headnode"
