@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
     options.add_options()(
         "return_context_logits", "Whether to return context logits.", cxxopts::value<bool>()->default_value("false"));
     options.add_options()("return_generation_logits", "Whether to return generation logits.",
-        cxxopts::value<bool>()->default_value("false"));
+        cxxopts::value<bool>()->default_value("true"));
     options.add_options()("scheduler_policy", "Choose scheduler policy between max_utilization/guaranteed_no_evict.",
         cxxopts::value<std::string>()->default_value("guaranteed_no_evict"));
     options.add_options()("log_level", "Choose log level between verbose/info/warning/error/internal_error.",
