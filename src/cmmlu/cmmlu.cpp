@@ -86,7 +86,7 @@ std::string LoadBytesFromFile(const std::filesystem::path& path) {
     return data;
 }
 
-std::string format_question(const std::string& question, const std::vector<std::string>& options, std::string answer, bool ex = false) {
+std::string CMMLU::format_question(const std::string& question, const std::vector<std::string>& options, std::string answer, bool ex = false) {
     std::string clabels = "ABCD";
     std::string text = "问题:\n";
     text += question + "\n\n选项:\n";
@@ -113,7 +113,7 @@ std::string format_question(const std::string& question, const std::vector<std::
 // csv format:
 // ,Question,A,B,C,D,Answer
 // 0,下列作物的果实为荚果的是,花生,向日葵,油菜,荞麦,A
-SeqQ readDatasetFromCSV(
+SeqQ CMMLU::readDatasetFromCSV(
     const std::filesystem::path& datasetPath, 
     const std::filesystem::path& tokenizerPath
 ){   
@@ -197,7 +197,7 @@ SeqQ readDatasetFromCSV(
     return seqs;
 }
 
-SeqQ readDatasetFromCSVfolder(const std::filesystem::path& folderPath, const std::filesystem::path& tokenizerPath) {
+SeqQ CMMLU::readDatasetFromCSVfolder(const std::filesystem::path& folderPath, const std::filesystem::path& tokenizerPath) {
     
     auto blob = LoadBytesFromFile(tokenizerPath);
     auto tok = tokenizers::Tokenizer::FromBlobJSON(blob);
@@ -374,14 +374,17 @@ char extract_choice(std::string response, std::vector<std::string> option_conten
     return choices[(rand() % (4))];
 }
 
-float output_acc(SeqV V_input,ResultV Vector_output,const std::filesystem::path& tokenizerPath){
+float CMMLU::output_acc(SeqV V_input,std::variant<ResultV, std::vector<std::vector<float>>> Vector_output,const std::filesystem::path& tokenizerPath){
     auto blob = LoadBytesFromFile(tokenizerPath);
     auto tok = tokenizers::Tokenizer::FromBlobJSON(blob);
     int num = V_input.size();
+    ResultV output_ids;
+    assert(std::holds_alternative<ResultV>(Vector_output));
+    output_ids = std::move(std::get<ResultV>(Vector_output));
     float acc = 0;
     for(int i  = 0;i < num ;i++ ){
         
-        std::vector<int> result_id(Vector_output.at(i).begin() + V_input.at(i).inputIds.size(), Vector_output.at(i).end());
+        std::vector<int> result_id(output_ids.at(i).begin() + V_input.at(i).inputIds.size(), output_ids.at(i).end());
         char answer = V_input.at(i).answer.value();
         std::string result = tok->Decode(result_id);
         

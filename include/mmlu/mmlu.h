@@ -1,3 +1,4 @@
+#include "mmlu_base/mmlu_base.h"
 #include "sequences/sequences.h"
 #include "tokenizers/tokenizers_cpp.h"
 #include <cassert>
@@ -12,15 +13,21 @@
 #include <time.h>
 #include <vector>
 
-std::string format_question(const std::string &question,
-                            const std::vector<std::string> &options,
-                            std::string answer, bool ex);
+class MMLU : public MMLU_Base {
+public:
+  std::string format_question(const std::string &question,
+                              const std::vector<std::string> &options,
+                              std::string answer, bool ex) override;
 
-SeqQ readDatasetFromCSV(const std::filesystem::path &datasetPath,
-                        const std::filesystem::path &tokenizerPath);
+  SeqQ readDatasetFromCSV(const std::filesystem::path &datasetPath,
+                          const std::filesystem::path &tokenizerPath) override;
 
-SeqQ readDatasetFromCSVfolder(const std::filesystem::path &folderPath,
-                              const std::filesystem::path &tokenizerPath);
+  SeqQ
+  readDatasetFromCSVfolder(const std::filesystem::path &folderPath,
+                           const std::filesystem::path &tokenizerPath) override;
 
-float output_acc(SeqV V_input, std::vector<std::vector<float>> logits_output,
-                 const std::filesystem::path &tokenizerPath);
+  float output_acc(
+      SeqV V_input,
+      std::variant<ResultV, std::vector<std::vector<float>>> Vector_output,
+      const std::filesystem::path &tokenizerPath) override;
+};

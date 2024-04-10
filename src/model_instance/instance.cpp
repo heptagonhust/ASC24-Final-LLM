@@ -71,7 +71,7 @@ void Instance::run()
         }
         whole_logits.push_back(logits);
     }
-    client.call("logits_back",whole_logits,order,instanceParams_.rpcParams.rpcNseqsBatchsize);
+    client.call("outseqs_back",outIds, whole_logits,order,instanceParams_.rpcParams.rpcNseqsBatchsize);
     // client.call("outseqs_back",whole_logits,order,instanceParams_.rpcParams.rpcNseqsBatchsize);
 }
 

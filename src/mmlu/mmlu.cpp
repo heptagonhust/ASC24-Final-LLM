@@ -20,7 +20,7 @@ std::string LoadBytesFromFile(const std::filesystem::path &path) {
   return data;
 }
 
-std::string format_question(const std::string &question,
+std::string MMLU::format_question(const std::string &question,
                             const std::vector<std::string> &options,
                             std::string answer, bool ex = false) {
   std::string clabels = "ABCD";
@@ -49,7 +49,7 @@ std::string format_question(const std::string &question,
 // csv format:
 // ,Question,A,B,C,D,Answer
 // 0,下列作物的果实为荚果的是,花生,向日葵,油菜,荞麦,A
-SeqQ readDatasetFromCSV(const std::filesystem::path &datasetPath,
+SeqQ MMLU::readDatasetFromCSV(const std::filesystem::path &datasetPath,
                         const std::filesystem::path &tokenizerPath) {
   auto blob = LoadBytesFromFile(tokenizerPath);
   auto tok = tokenizers::Tokenizer::FromBlobJSON(blob);
@@ -121,7 +121,7 @@ SeqQ readDatasetFromCSV(const std::filesystem::path &datasetPath,
   return seqs;
 }
 
-SeqQ readDatasetFromCSVfolder(const std::filesystem::path &folderPath,
+SeqQ MMLU::readDatasetFromCSVfolder(const std::filesystem::path &folderPath,
                               const std::filesystem::path &tokenizerPath) {
 
   auto blob = LoadBytesFromFile(tokenizerPath);
@@ -203,10 +203,14 @@ SeqQ readDatasetFromCSVfolder(const std::filesystem::path &folderPath,
   return seqs;
 }
 
-float output_acc(SeqV V_input, std::vector<std::vector<float>> logits_output,
+float MMLU::output_acc(SeqV V_input, std::variant<ResultV, std::vector<std::vector<float>>> Vector_output,
                  const std::filesystem::path &tokenizerPath) {
   auto blob = LoadBytesFromFile(tokenizerPath);
   auto tok = tokenizers::Tokenizer::FromBlobJSON(blob);
+  std::vector<std::vector<float>> logits_output;
+  assert(std::holds_alternative<std::vector<std::vector<float>>>(Vector_output));
+  logits_output = std::get<std::vector<std::vector<float>>>(Vector_output);
+
   int num = logits_output.size();
   float acc = 0;
   std::vector<int> ABCD_token_id = {
