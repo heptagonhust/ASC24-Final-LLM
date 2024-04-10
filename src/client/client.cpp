@@ -8,6 +8,7 @@
 #include "tensorrt_llm/common/logger.h"
 #include "tensorrt_llm/plugins/api/tllmPlugin.h"
 #include "tensorrt_llm/runtime/tllmLogger.h"
+#include "tensorrt_llm/executor/tensor.h"
 
 #include "model_instance/config.h"
 #include "model_instance/instance.h"

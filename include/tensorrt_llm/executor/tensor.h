@@ -104,7 +104,7 @@ public:
     //! \param shape The shape of the tensor.
     //! \param dataType The data type of the tensor.
     static Tensor pooledPinned(DataType dataType, Shape shape = {});
-
+    
     template <typename T>
     static Tensor pooledPinned(Shape shape = {})
     {

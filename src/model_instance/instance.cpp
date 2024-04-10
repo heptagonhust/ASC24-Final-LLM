@@ -58,11 +58,21 @@ void Instance::run()
 
     auto results = executorServer_->getResults();
     std::vector<std::vector<int32_t>> outIds;
+    std::vector<std::vector<float>> whole_logits;
     for (auto& [reqId, result] : results) {
         outIds.push_back(result.outputTokenIds[0]);
+        auto data = result.generationLogits->getData();
+        auto logits_size = result.generationLogits->getSize();
+        auto logits_shape = result.generationLogits->getShape();
+        std::vector<float> logits; 
+        for(int i = 0;i < logits_shape[2];i++){
+            // ! may not be correct
+            logits.push_back(static_cast<float*>(data)[i]);
+        }
+        whole_logits.push_back(logits);
     }
-    client.call("outseqs_back",outIds,order,instanceParams_.rpcParams.rpcNseqsBatchsize);
-
+    client.call("logits_back",whole_logits,order,instanceParams_.rpcParams.rpcNseqsBatchsize);
+    // client.call("outseqs_back",whole_logits,order,instanceParams_.rpcParams.rpcNseqsBatchsize);
 }
 
 std::vector<texec::Request> Instance::getRequests(Sequences seqs) const {

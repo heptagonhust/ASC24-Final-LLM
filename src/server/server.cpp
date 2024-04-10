@@ -204,29 +204,23 @@ int main(int argc, char* argv[]) {
                 else{
                     Sequence seq = Queue_input.front();
                     Queue_input.pop();
-                    seqs.emplace_back(Sequence{seq.inputIds, seq.outputLen,order});
+                    seqs.emplace_back(Sequence{seq.inputIds, seq.outputLen, order, seq.answer});
                     order++;
                 }
             }
         }
         return seqs;
     });
-
-    srv.bind("outseqs_back",[&](ResultV outIds,std::vector<int32_t> order,int32_t batch_size){
-        for(int i = 0;i<order.size();i++){
+    srv.bind("logits_back",[&](std::vector<std::vector<float>> whole_logits,std::vector<int32_t> order,int32_t batch_size){
+         for(int i = 0;i<order.size();i++){
             for(int j = 0 ;j < batch_size && ((order.at(i)+j) < num_seqs);j++){
-                recorder.record(outIds[i * batch_size + j].size(),V_input.at(order.at(i)+j).inputIds.size());
-                Vector_output.at(order.at(i)+j) = outIds[i * batch_size + j];
+                
+                
                 back_times++;
             }
         }
         if (back_times == num_seqs) {
-            recorder.finalize();
-            recorder.calculateMetrics();
-            recorder.report();
-            float acc = output_acc(V_input,Vector_output,tokenizerPath);
-            std::cout<<"acc = "<< acc <<std::endl;
-            writeResultsToJson(outputPath, tokenizerPath, Vector_output);
+            std::cout<<"over";
             rpc::this_server().stop();
         }
     });
