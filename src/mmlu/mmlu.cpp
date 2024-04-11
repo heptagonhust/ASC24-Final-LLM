@@ -82,7 +82,7 @@ void getFormattedQuestionIntoSeq(
 
   prompt += realQuestion;
 
-//   std::cout << "prompt=\n" << prompt << std::endl;
+  //   std::cout << "prompt=\n" << prompt << std::endl;
 
   seq.inputIds = tknizer->Encode(prompt);
 }
@@ -132,12 +132,12 @@ bool readOneQuestion(std::stringstream &ss, Sequence &seq,
     char tmpChar = 0;
     // We have a quoted segmentation
     if (ss.peek() == '"') {
-        ss.get(tmpChar);  // skip starting quote
+      ss.get(tmpChar); // skip starting quote
       while (!ss.eof()) {
         ss.get(tmpChar);
         // closing quote is found
         if (tmpChar == '"') {
-          ss.get(tmpChar);  // Get rid of tailing `,`
+          ss.get(tmpChar); // Get rid of tailing `,`
           break;
         }
         seg.push_back(tmpChar);
@@ -222,91 +222,73 @@ SeqQ MMLU::readDatasetFromCSV(const std::filesystem::path &datasetPath,
 
     getFormattedQuestionIntoSeq(seq, question, headingPrompt, tknizer);
 
-
     seqs.push(seq);
   }
   return seqs;
 }
 
+void readCsvInFolder(SeqQ &seqs, const std::filesystem::path &datasetPath,
+                     std::shared_ptr<tokenizers::Tokenizer> tknizer, ) {
+  const int NUM_EXAMPLES = 3;
+
+  std::ifstream file(datasetPath);
+  std::string fileNameWithoutExtension = datasetPath.stem();
+  std::string line;
+  std::vector<Sequence> example_seqs;
+  std::vector<std::string> example_questions;
+  // skip first line
+  getline(file, line);
+
+  // Get example problems
+  for (int i = 0; i < NUM_EXAMPLES; i++) {
+    getline(file, line);
+    std::stringstream ss(line);
+    // std::cout << "line=" << line << std::endl;
+
+    Sequence seq;
+    std::string question;
+
+    readOneQuestion(ss, seq, question);
+
+    example_seqs.push_back(seq);
+    example_questions.push_back(question);
+  }
+
+  // prepare heading prompt
+  std::string headingPrompt;
+  generateHeadingPrompt(
+      headingPrompt, example_seqs, example_questions,
+      fileNameWithoutExtension.substr(0, fileNameWithoutExtension.size() - 5));
+
+  // get each problem
+  while (getline(file, line)) {
+    std::stringstream ss(line);
+    std::string temp;
+
+    Sequence seq;
+    std::string question;
+    readOneQuestion(ss, seq, question);
+
+    getFormattedQuestionIntoSeq(seq, question, headingPrompt, tknizer);
+
+    seqs.push(seq);
+  }
+}
+
 SeqQ MMLU::readDatasetFromCSVfolder(
     const std::filesystem::path &folderPath,
     const std::filesystem::path &tokenizerPath) {
-
+  // tokenizer
   auto blob = LoadBytesFromFile(tokenizerPath);
   auto tok = tokenizers::Tokenizer::FromBlobJSON(blob);
+  std::shared_ptr<tokenizers::Tokenizer> tknizer = std::move(tok);
+
   SeqQ seqs;
-  try {
-    for (const auto &entry : std::filesystem::directory_iterator(folderPath)) {
-      if (entry.is_regular_file() && entry.path().extension() == ".csv") {
-        std::filesystem::path datasetPath = entry.path();
-        std::string fileNameWithoutExtension = datasetPath.stem();
-        std::ifstream file(datasetPath);
-        std::string line;
-        getline(file, line);
-        int examples_num = 3;
-        std::string examples_prompt;
-        for (int i = 0; i < examples_num; i++) {
-          getline(file, line);
-          std::stringstream ss(line);
-          std::string temp;
-          getline(ss, temp, ',');
-          Sequence seq;
-          std::string question;
-          std::string optionA;
-          std::string optionB;
-          std::string optionC;
-          std::string optionD;
-          std::string answer;
-          getline(ss, question, ',');
-          getline(ss, optionA, ',');
-          getline(ss, optionB, ',');
-          getline(ss, optionC, ',');
-          getline(ss, optionD, ',');
-          getline(ss, answer, ' ');
-
-          examples_prompt += format_question(
-              question, {optionA, optionB, optionC, optionD}, answer, true);
-          examples_prompt += "\n\n";
-        }
-
-        while (getline(file, line)) {
-          std::stringstream ss(line);
-          std::string temp;
-          getline(ss, temp, ',');
-          Sequence seq;
-          std::string question;
-          std::string optionA;
-          std::string optionB;
-          std::string optionC;
-          std::string optionD;
-          std::string answer;
-          getline(ss, question, ',');
-          getline(ss, optionA, ',');
-          getline(ss, optionB, ',');
-          getline(ss, optionC, ',');
-          getline(ss, optionD, ',');
-          getline(ss, answer, ' ');
-
-          std::string q_prompt = format_question(
-              question, {optionA, optionB, optionC, optionD}, answer);
-          std::string category = fileNameWithoutExtension;
-          std::string prompts = "以下是关于(" + category +
-                                ")的单项选择题，请直接给出正确答案的选项。\n\n";
-          prompts += examples_prompt;
-          prompts += q_prompt;
-          seq.inputIds = tok->Encode(prompts);
-          seq.outputLen = 20;
-          seq.answer = answer[0];
-          seq.optionA = optionA;
-          seq.optionB = optionB;
-          seq.optionC = optionC;
-          seq.optionD = optionD;
-          seqs.push(seq);
-        }
-      }
+  for (const auto &entry : std::filesystem::directory_iterator(folderPath)) {
+    if (entry.is_regular_file() && entry.path().extension() == ".csv") {
+      std::filesystem::path datasetPath = entry.path();
+      readCsvInFolder(seqs, datasetPath, tknizer);
     }
-  } catch (const std::exception &ex) {
-    std::cerr << "Error: " << ex.what() << std::endl;
   }
   return seqs;
 }
