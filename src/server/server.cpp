@@ -189,8 +189,24 @@ int main(int argc, char* argv[]) {
         MMLU_test = std::make_unique<MMLU>();
     }
 
-  
-    SeqQ Queue_input = MMLU_test->readDatasetFromCSV(datasetPath,tokenizerPath);
+    /* read Queue_input */
+    SeqQ Queue_input;
+    std::filesystem::path datasetPath_fs(datasetPath);
+    std::filesystem::path tokenizerPath_fs(tokenizerPath);
+    if (!std::filesystem::exists(datasetPath_fs)) {
+        std::cerr << "Dataset path does not exist: " << datasetPath << std::endl;
+        return 1;
+    }
+    if (std::filesystem::is_directory(datasetPath_fs)) {
+        Queue_input = MMLU_test->readDatasetFromCSVfolder(datasetPath, tokenizerPath_fs);
+    } else {
+        if (datasetPath_fs.extension() == ".json") {
+            Queue_input = readDatasetFromJson(datasetPath_fs, tokenizerPath_fs);
+        } else {
+            Queue_input = MMLU_test->readDatasetFromCSV(datasetPath_fs, tokenizerPath_fs);
+        }
+    }
+
     SeqQ tmp = Queue_input;
     SeqV V_input = queueToVector(tmp);
     int num_seqs = Queue_input.size();
