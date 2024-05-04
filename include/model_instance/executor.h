@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <map>
+#include <optional>
 
 #include "tensorrt_llm/executor/executor.h"
 #include "tensorrt_llm/executor/types.h"
@@ -27,7 +28,9 @@ public:
 
     void enqueue(std::vector<texec::Request> requests, bool warmup = false);
 
-    void waitForResponses(std::optional<SizeType> numRequests,
+    void waitForGetReqs(SizeType threshold);
+
+    void waitForResponses(std::optional<SizeType> numRequests = std::nullopt,
                           bool warmup = false);
         
     std::map<texec::IdType, texec::Result> getResults() { return results_; }
